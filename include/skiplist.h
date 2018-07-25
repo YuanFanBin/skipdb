@@ -30,6 +30,12 @@
 #define MAX_KEY_LEN         65535   // key最大长度(1 << 16 - 1), ::uint16_t datanode->size::
 #define SKIPLIST_MAXLEVEL   64      // 跳表最大level
 
+#define SKIPLIST_STATE_NORMAL 1
+#define SKIPLIST_STATE_DEFRAG 2
+#define SKIPLIST_STATE_SPLITED 3
+#define SKIPLIST_STATE_SPLITER 4
+#define SKIPLIST_STATE_MERGE_LOG 5
+
 typedef struct metanode_s {
     uint32_t level;
     uint32_t flag;
@@ -71,6 +77,7 @@ typedef struct skiplist_s {
     char* metaname;
     char* dataname;
     struct skipsplit_s* split;
+    int state;
 } skiplist_t;
 
 typedef struct skipsplit_s {
@@ -85,6 +92,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len);
 status_t sl_sync(skiplist_t* sl);
 status_t sl_close(skiplist_t* sl);
+status_t sl_destroy(skiplist_t* sl); // 销毁跳表并删除关联文件
 status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
 status_t sl_wrlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
 status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
