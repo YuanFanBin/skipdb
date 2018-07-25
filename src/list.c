@@ -2,9 +2,9 @@
 #include <errno.h>
 #include <string.h>
 
-status list_create(list** l) {
-    status _status = { .ok = 1 };
-    *l = (list*)malloc(sizeof(list));
+status_t list_create(list_t** l) {
+    status_t _status = { .ok = 1 };
+    *l = (list_t*)malloc(sizeof(list_t));
     if (*l == NULL) {
         return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
     }
@@ -12,14 +12,14 @@ status list_create(list** l) {
     return _status;
 }
 
-status list_push_front(list* l, uint64_t value) {
-    status _status = { .ok = 1 };
-    listnode* node = NULL;
+status_t list_push_front(list_t* l, uint64_t value) {
+    status_t _status = { .ok = 1 };
+    listnode_t* node = NULL;
 
     if (l == NULL) {
         return statusnotok0(_status, "list is NULL");
     }
-    node = (listnode*)malloc(sizeof(listnode));
+    node = (listnode_t*)malloc(sizeof(listnode_t));
     if (node == NULL) {
         return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
     }
@@ -33,8 +33,8 @@ status list_push_front(list* l, uint64_t value) {
     return _status;
 }
 
-status list_front(list *l, listnode** node) {
-    status _status = { .ok = 1 };
+status_t list_front(list_t* l, listnode_t** node) {
+    status_t _status = { .ok = 1 };
     if (l == NULL) {
         return statusnotok0(_status, "list is NULL");
     }
@@ -42,8 +42,8 @@ status list_front(list *l, listnode** node) {
     return _status;
 }
 
-status list_remove(list* l, listnode* node) {
-    status _status = { .ok = 1 };
+status_t list_remove(list_t* l, listnode_t* node) {
+    status_t _status = { .ok = 1 };
     if (l == NULL) {
         return statusnotok0(_status, "list is NULL");
     }
@@ -62,9 +62,9 @@ status list_remove(list* l, listnode* node) {
     return _status;
 }
 
-void list_free(list *l) {
-    listnode* next = NULL;
-    listnode* curr = l->head;
+void list_free(list_t* l) {
+    listnode_t* next = NULL;
+    listnode_t* curr = l->head;
 
     while (curr != NULL) {
         next = curr->next;

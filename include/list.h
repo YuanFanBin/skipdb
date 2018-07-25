@@ -6,20 +6,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct listnode {
+typedef struct listnode_s {
     uint64_t value;
-    struct listnode* prev;
-    struct listnode* next;
-} listnode;
+    struct listnode_s* prev;
+    struct listnode_s* next;
+} listnode_t;
 
-typedef struct list {
-    listnode* head;
-} list;
+typedef struct list_s {
+    listnode_t* head;
+} list_t;
 
-status list_create(list** l);
-status list_push_front(list* l, uint64_t value);
-status list_front(list *l, listnode** node);
-status list_remove(list *l, listnode* node);
-void list_free(list *l);
+status_t list_create(list_t** l);
+status_t list_push_front(list_t* l, uint64_t value);
+status_t list_front(list_t* l, listnode_t** node);
+status_t list_remove(list_t *l, listnode_t* node);
+void list_free(list_t* l);
 
 #endif // __LIST_H

@@ -1,6 +1,6 @@
 #include "print.h"
 
-static void printmetanode(FILE* stream, metanode* mnode, uint64_t pos) {
+static void printmetanode(FILE* stream, metanode_t* mnode, uint64_t pos) {
     if (mnode == NULL) {
         return;
     }
@@ -18,7 +18,7 @@ static void printmetanode(FILE* stream, metanode* mnode, uint64_t pos) {
     fprintf(stream, "],");
 }
 
-static void printdatanode(FILE* stream, datanode* dnode) {
+static void printdatanode(FILE* stream, datanode_t* dnode) {
     char* buff = (char*)malloc(sizeof(char) * dnode->size + 1);
     memcpy(buff, dnode->data, dnode->size);
     buff[dnode->size] = '\0';
@@ -26,16 +26,16 @@ static void printdatanode(FILE* stream, datanode* dnode) {
     free(buff);
 }
 
-static void printnode(skiplist* sl, FILE* stream, metanode* mnode, uint64_t pos) {
+static void printnode(skiplist_t* sl, FILE* stream, metanode_t* mnode, uint64_t pos) {
     printmetanode(stream, mnode, pos);
-    datanode* dnode = sl_get_datanode(sl, mnode->offset);
+    datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
     printdatanode(stream, dnode);
 }
 
-void sl_print(skiplist* sl, FILE* stream, int isprintnode) {
+void sl_print(skiplist_t* sl, FILE* stream, int isprintnode) {
     int lvlcnt[SKIPLIST_MAXLEVEL] = { 0 };
-    metanode* curr = NULL;
-    metanode* next = NULL;
+    metanode_t* curr = NULL;
+    metanode_t* next = NULL;
 
     curr = METANODEHEAD(sl);
     if (isprintnode) {
@@ -82,7 +82,7 @@ void sl_print(skiplist* sl, FILE* stream, int isprintnode) {
     fprintf(stream, "\033[31m[ skiplist->metafree ]\033[0m\n");
     for (int i = 0; i < SKIPLIST_MAXLEVEL; ++i) {
         if (sl->metafree[i] != NULL) {
-            listnode* lnode = sl->metafree[i]->head;
+            listnode_t* lnode = sl->metafree[i]->head;
             while (lnode != NULL) {
                 printmetanode(stream, METANODE(sl, lnode->value), lnode->value);
                 fprintf(stream, "\n");
@@ -100,9 +100,9 @@ void sl_print(skiplist* sl, FILE* stream, int isprintnode) {
     // skiplist->metafree
     fprintf(stream, "\033[31m[ skiplist->datafree ]\033[0m\n");
     if (sl->datafree != NULL) {
-        listnode* lnode = sl->datafree->head;
+        listnode_t* lnode = sl->datafree->head;
         while (lnode != NULL) {
-            datanode* dnode = sl_get_datanode(sl, lnode->value);
+            datanode_t* dnode = sl_get_datanode(sl, lnode->value);
             fprintf(stream, "[\033[36m%8lu\033[0m]]: offset = %ld, size = %d, data = ",
                     lnode->value,
                     dnode->offset,
@@ -113,10 +113,10 @@ void sl_print(skiplist* sl, FILE* stream, int isprintnode) {
     }
 }
 
-void sl_print_keys(skiplist* sl, FILE* stream) {
-    metanode* curr = NULL;
-    metanode* next = NULL;
-    datanode* dnode = NULL;
+void sl_print_keys(skiplist_t* sl, FILE* stream) {
+    metanode_t* curr = NULL;
+    metanode_t* next = NULL;
+    datanode_t* dnode = NULL;
 
     fprintf(stream, "\033[32m[ skiplist keys ]\033[0m\n");
     curr = METANODEHEAD(sl);
@@ -132,9 +132,9 @@ void sl_print_keys(skiplist* sl, FILE* stream) {
     }
 }
 
-void sl_print_rkeys(skiplist* sl, FILE* stream) {
-    metanode* curr = NULL;
-    datanode* dnode = NULL;
+void sl_print_rkeys(skiplist_t* sl, FILE* stream) {
+    metanode_t* curr = NULL;
+    datanode_t* dnode = NULL;
 
     fprintf(stream, "\033[32m[ skiplist rkeys ]\033[0m\n");
     curr = METANODE(sl, sl->meta->tail);

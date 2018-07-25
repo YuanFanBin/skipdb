@@ -30,64 +30,64 @@
 #define MAX_KEY_LEN         65535   // key最大长度(1 << 16 - 1), ::uint16_t datanode->size::
 #define SKIPLIST_MAXLEVEL   64      // 跳表最大level
 
-typedef struct metanode {
+typedef struct metanode_s {
     uint32_t level;
     uint32_t flag;
     uint64_t offset;
     uint64_t value;
     uint64_t backward;
     uint64_t forwards[0];
-} metanode;
+} metanode_t;
 
-typedef struct skipmeta {
+typedef struct skipmeta_s {
     uint64_t mapsize; // 已使用used
     uint64_t mapcap;  // 已映射total
     uint64_t tail;    // tail metanode
     uint32_t count;   // key个数（不包括已被删除节点）
     float p;          // p
     void* mapped;     // mmap map pointer
-} skipmeta;
+} skipmeta_t;
 
-typedef struct datanode {
+typedef struct datanode_s {
     uint64_t offset;
     uint16_t size; // NOTE: key max
     void* data[0];
-} datanode;
+} datanode_t;
 
-typedef struct skipdata {
+typedef struct skipdata_t {
     uint64_t mapsize;
     uint64_t mapcap;
     void* mapped;
-} skipdata;
+} skipdata_t;
 
-typedef struct skiplist {
+typedef struct skiplist_s {
     pthread_rwlock_t rwlock;
-    skipmeta* meta;
-    skipdata* data;
-    list* metafree[SKIPLIST_MAXLEVEL];
-    list* datafree;
+    skipmeta_t* meta;
+    skipdata_t* data;
+    list_t* metafree[SKIPLIST_MAXLEVEL];
+    list_t* datafree;
     char* metaname;
     char* dataname;
-} skiplist;
+} skiplist_t;
 
-status sl_open(const char* prefix, float p, skiplist** sl);
-status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value);
-status sl_get(skiplist* sl, const void* key, size_t key_len, uint64_t* value);
-status sl_del(skiplist* sl, const void* key, size_t key_len);
-status sl_sync(skiplist* sl);
-status sl_close(skiplist* sl);
-status sl_rdlock(skiplist* sl, uint64_t offsets[], size_t offsets_n);
-status sl_wrlock(skiplist* sl, uint64_t offsets[], size_t offsets_n);
-status sl_unlock(skiplist* sl, uint64_t offsets[], size_t offsets_n);
-status sl_get_maxkey(skiplist* sl, void** key, size_t* size);
-datanode* sl_get_datanode(skiplist* sl, uint64_t offset);
+status_t sl_open(const char* prefix, float p, skiplist_t** sl);
+status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value);
+status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value);
+status_t sl_del(skiplist_t* sl, const void* key, size_t key_len);
+status_t sl_sync(skiplist_t* sl);
+status_t sl_close(skiplist_t* sl);
+status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
+status_t sl_wrlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
+status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
+status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size);
+datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset);
 
-#define METANODEHEAD(sl) ((metanode*)((sl)->meta->mapped + sizeof(skipmeta) + 1))
-#define METANODE(sl, offset) ((offset) == 0 ? NULL : ((metanode*)((sl)->meta->mapped + (offset))))
-#define METANODESIZE(mnode) (sizeof(metanode) + sizeof(uint64_t) * (mnode)->level)
+#define METANODEHEAD(sl) ((metanode_t*)((sl)->meta->mapped + sizeof(skipmeta_t) + 1))
+#define METANODE(sl, offset) ((offset) == 0 ? NULL : ((metanode_t*)((sl)->meta->mapped + (offset))))
+#define METANODESIZE(mnode) (sizeof(metanode_t) + sizeof(uint64_t) * (mnode)->level)
 #define METANODEPOSITION(sl, node) ((uint64_t)((void*)(node) - (sl)->meta->mapped))
 
-#define DATANODESIZE(dnode) (sizeof(datanode) + sizeof(char) * (dnode)->size)
+#define DATANODESIZE(dnode) (sizeof(datanode_t) + sizeof(char) * (dnode)->size)
 #define DATANODEPOSITION(sl, node) ((uint64_t)((void*)(node) - (sl)->data->mapped))
 
 #endif // __SKIPLIST_H

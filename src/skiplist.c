@@ -18,13 +18,13 @@ static inline uint8_t random_level(float p) {
     return (level < SKIPLIST_MAXLEVEL) ? level : SKIPLIST_MAXLEVEL;
 }
 
-inline datanode* sl_get_datanode(skiplist* sl, uint64_t offset) {
-    return (datanode*)(sl->data->mapped + offset);
+inline datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset) {
+    return (datanode_t*)(sl->data->mapped + offset);
 }
 
-static status openfile(const char* filename, int* fd, uint64_t* size, size_t default_size) {
+static status_t openfile(const char* filename, int* fd, uint64_t* size, size_t default_size) {
     struct stat s;
-    status _status = { .ok = 1 };
+    status_t _status = { .ok = 1 };
 
     if (access(filename, F_OK) == 0) {
         if ((*fd = open(filename, O_RDWR)) < 0) {
@@ -49,8 +49,8 @@ static status openfile(const char* filename, int* fd, uint64_t* size, size_t def
     return _status;
 }
 
-static status filemmap(int fd, uint64_t size, void** mapped) {
-    status _status = { .ok = 1 };
+static status_t filemmap(int fd, uint64_t size, void** mapped) {
+    status_t _status = { .ok = 1 };
 
     if ((*mapped = mmap(NULL, (size_t)size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == (void*)-1) {
         return statusnotok2(_status, "mmap(%d): %s", errno, strerror(errno));
@@ -62,20 +62,20 @@ static status filemmap(int fd, uint64_t size, void** mapped) {
     return _status;
 }
 
-static void createmeta(skiplist* sl, void* mapped, uint64_t mapcap, float p) {
-    metanode* head = NULL;
+static void createmeta(skiplist_t* sl, void* mapped, uint64_t mapcap, float p) {
+    metanode_t* head = NULL;
 
-    sl->meta = (skipmeta*)mapped;
+    sl->meta = (skipmeta_t*)mapped;
     sl->meta->mapcap = mapcap;
     sl->meta->mapped = mapped;
-    sl->meta->mapsize = sizeof(skipmeta) + sizeof(metanode) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL;
-    sl->meta->tail = sizeof(skipmeta);
+    sl->meta->mapsize = sizeof(skipmeta_t) + sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL;
+    sl->meta->tail = sizeof(skipmeta_t);
     sl->meta->count = 0;
     sl->meta->p = p;
     for (int i = 0; i < SKIPLIST_MAXLEVEL; ++i) {
         sl->metafree[i] = NULL;
     }
-    head = (metanode*)(mapped + sizeof(skipmeta) + 1);
+    head = (metanode_t*)(mapped + sizeof(skipmeta_t) + 1);
     head->flag = METANODE_HEAD;
     head->offset = 0;
     head->value = 0;
@@ -83,12 +83,12 @@ static void createmeta(skiplist* sl, void* mapped, uint64_t mapcap, float p) {
     head->level = 0;
 }
 
-static void loadmeta(skiplist* sl, void* mapped, uint64_t mapcap) {
-    sl->meta = (skipmeta*)mapped;
+static void loadmeta(skiplist_t* sl, void* mapped, uint64_t mapcap) {
+    sl->meta = (skipmeta_t*)mapped;
     sl->meta->mapcap = mapcap;
     sl->meta->mapped = mapped;
 
-    metanode* curr = (metanode*)(mapped + sizeof(skipmeta) + sizeof(metanode) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL + 1);
+    metanode_t* curr = (metanode_t*)(mapped + sizeof(skipmeta_t) + sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL + 1);
     while (curr->flag | METANODE_NONE) {
         if ((curr->flag | METANODE_DELETED) == METANODE_DELETED) {
             if (sl->metafree[curr->level] == NULL) {
@@ -97,14 +97,14 @@ static void loadmeta(skiplist* sl, void* mapped, uint64_t mapcap) {
             list_push_front(sl->metafree[curr->level], METANODEPOSITION(sl, curr)); // reload recycle meta space
         }
         // next
-        curr = (metanode*)((void*)curr + sizeof(metanode) + sizeof(uint64_t) * curr->level);
+        curr = (metanode_t*)((void*)curr + sizeof(metanode_t) + sizeof(uint64_t) * curr->level);
     }
 }
 
-static void createdata(skiplist* sl, void* mapped, uint64_t mapcap) {
-    sl->data = (skipdata*)mapped;
+static void createdata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
+    sl->data = (skipdata_t*)mapped;
     sl->data->mapped = mapped;
-    sl->data->mapsize = sizeof(skipdata);
+    sl->data->mapsize = sizeof(skipdata_t);
     sl->data->mapcap = mapcap;
     sl->datafree = NULL;
 }
@@ -113,8 +113,8 @@ static int cmpu64(const void* p1, const void* p2) {
     return *((uint64_t*)p1) > *((uint64_t*)p2);
 }
 
-static void loaddata(skiplist* sl, void* mapped, uint64_t mapcap) {
-    sl->data = (skipdata*)mapped;
+static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
+    sl->data = (skipdata_t*)mapped;
     sl->data->mapcap = mapcap;
     sl->data->mapped = mapped;
 
@@ -122,9 +122,9 @@ static void loaddata(skiplist* sl, void* mapped, uint64_t mapcap) {
     for (int i = 0; i < sl->meta->count; ++i) {
         offsets[i] = 0;
     }
-    metanode* curr = METANODEHEAD(sl);
+    metanode_t* curr = METANODEHEAD(sl);
     for (int i = 0; ; ++i) {
-        metanode* next = METANODE(sl, curr->forwards[0]);
+        metanode_t* next = METANODE(sl, curr->forwards[0]);
         if (next == NULL) {
             break;
         }
@@ -132,22 +132,22 @@ static void loaddata(skiplist* sl, void* mapped, uint64_t mapcap) {
         curr = next;
     }
     qsort(offsets, sl->meta->count, sizeof(uint64_t*), cmpu64);
-    datanode* dnode = (datanode*)(sl->data->mapped + sizeof(skipdata) + 1);
+    datanode_t* dnode = (datanode_t*)(sl->data->mapped + sizeof(skipdata_t) + 1);
     for (int i = 0; i < sl->meta->count; ++i) {
         while (offsets[i] != DATANODEPOSITION(sl, dnode)) {
             if (sl->datafree == NULL) {
                 list_create(&sl->datafree);
             }
             list_push_front(sl->datafree, DATANODEPOSITION(sl, dnode));
-            dnode = (datanode*)((void*)dnode + sizeof(datanode) + dnode->size);
+            dnode = (datanode_t*)((void*)dnode + sizeof(datanode_t) + dnode->size);
         }
-        dnode = (datanode*)((void*)dnode + sizeof(datanode) + dnode->size);
+        dnode = (datanode_t*)((void*)dnode + sizeof(datanode_t) + dnode->size);
     }
     free(offsets);
 }
 
-status sl_open(const char* prefix, float p, skiplist** sl) {
-    status _status = { .ok = 1 };
+status_t sl_open(const char* prefix, float p, skiplist_t** sl) {
+    status_t _status = { .ok = 1 };
     int metafd;
     int datafd;
     int err;
@@ -157,7 +157,7 @@ status sl_open(const char* prefix, float p, skiplist** sl) {
     if (prefix == NULL) {
         return statusnotok0(_status, "prefix is NULL");
     }
-    *sl = (skiplist*)malloc(sizeof(skiplist));
+    *sl = (skiplist_t*)malloc(sizeof(skiplist_t));
     if ((err = pthread_rwlock_init(&(*sl)->rwlock, NULL)) != 0) {
         return statusnotok2(_status, "pthread_rwlock_init(%d): %s", err, strerror(err));
     }
@@ -168,12 +168,12 @@ status sl_open(const char* prefix, float p, skiplist** sl) {
     (*sl)->dataname = (char*)malloc(sizeof(char) * (prefix_len + 9));
     snprintf((*sl)->dataname, prefix_len + 9, "%s.sl.data", prefix);
 
-    status s1 = openfile((*sl)->metaname, &metafd, &metacap, DEFAULT_METAFILE_SIZE);
+    status_t s1 = openfile((*sl)->metaname, &metafd, &metacap, DEFAULT_METAFILE_SIZE);
     if (!s1.ok) {
         sl_close(*sl);
         return s1;
     }
-    status s2 = openfile((*sl)->dataname, &datafd, &datacap, DEFAULT_DATAFILE_SIZE);
+    status_t s2 = openfile((*sl)->dataname, &datafd, &datacap, DEFAULT_DATAFILE_SIZE);
     if (!s2.ok) {
         close(metafd);
         sl_close(*sl);
@@ -228,8 +228,8 @@ status sl_open(const char* prefix, float p, skiplist** sl) {
     return _status;
 }
 
-status sl_get(skiplist* sl, const void* key, size_t key_len, uint64_t* value) {
-    status _status = { .ok = 1 };
+status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value) {
+    status_t _status = { .ok = 1 };
     uint64_t _offsets[] = {};
 
     if (sl == NULL || key == NULL) {
@@ -239,14 +239,14 @@ status sl_get(skiplist* sl, const void* key, size_t key_len, uint64_t* value) {
     if (!_status.ok) {
         return _status;
     }
-    metanode* curr = METANODEHEAD(sl);
+    metanode_t* curr = METANODEHEAD(sl);
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
-            metanode* next = METANODE(sl, curr->forwards[level]);
+            metanode_t* next = METANODE(sl, curr->forwards[level]);
             if (next == NULL) {
                 break;
             }
-            datanode* dnode = sl_get_datanode(sl, next->offset);
+            datanode_t* dnode = sl_get_datanode(sl, next->offset);
             int cmp = keycmp(dnode->data, dnode->size, key, key_len);
             if (cmp == -1) {
                 curr = next;
@@ -262,11 +262,11 @@ status sl_get(skiplist* sl, const void* key, size_t key_len, uint64_t* value) {
     return sl_unlock(sl, _offsets, 0);
 }
 
-status sl_del(skiplist* sl, const void* key, size_t key_len) {
-    status _status = { .ok = 1 };
+status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
+    status_t _status = { .ok = 1 };
     uint64_t _offsets[] = {};
-    metanode* mnode = NULL;
-    metanode* update[SKIPLIST_MAXLEVEL] = { NULL };
+    metanode_t* mnode = NULL;
+    metanode_t* update[SKIPLIST_MAXLEVEL] = { NULL };
 
     if (sl == NULL || key == NULL) {
         return statusnotok0(_status, "skiplist or key is NULL");
@@ -275,15 +275,15 @@ status sl_del(skiplist* sl, const void* key, size_t key_len) {
     if (!_status.ok) {
         return _status;
     }
-    metanode* curr = METANODEHEAD(sl);
+    metanode_t* curr = METANODEHEAD(sl);
     // find all level, update max level
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
-            metanode* next = METANODE(sl, curr->forwards[level]);
+            metanode_t* next = METANODE(sl, curr->forwards[level]);
             if (next == NULL) {
                 break;
             }
-            datanode* dnode = sl_get_datanode(sl, next->offset);
+            datanode_t* dnode = sl_get_datanode(sl, next->offset);
             int cmp = keycmp(dnode->data, dnode->size, key, key_len);
             if (cmp == -1) {
                 curr = next;
@@ -304,7 +304,7 @@ status sl_del(skiplist* sl, const void* key, size_t key_len) {
         update[i]->forwards[i] = mnode->forwards[i];
     }
     if (mnode->forwards[0] != 0) {
-        metanode* next = METANODE(sl, mnode->forwards[0]);
+        metanode_t* next = METANODE(sl, mnode->forwards[0]);
         next->backward = mnode->backward;
     }
     curr = METANODEHEAD(sl);
@@ -318,8 +318,8 @@ status sl_del(skiplist* sl, const void* key, size_t key_len) {
     return sl_unlock(sl, _offsets, 0);
 }
 
-status sl_sync(skiplist* sl) {
-    status _status = { .ok = 1 };
+status_t sl_sync(skiplist_t* sl) {
+    status_t _status = { .ok = 1 };
     if (sl == NULL) {
         return _status;
     }
@@ -336,9 +336,9 @@ status sl_sync(skiplist* sl) {
     return _status;
 }
 
-status sl_close(skiplist* sl) {
+status_t sl_close(skiplist_t* sl) {
     int err;
-    status _status = { .ok = 1 };
+    status_t _status = { .ok = 1 };
 
     if (sl == NULL) {
         return _status;
@@ -375,11 +375,11 @@ status sl_close(skiplist* sl) {
     return _status;
 }
 
-static status expanddatafile(skiplist* sl) {
+static status_t expanddatafile(skiplist_t* sl) {
     int fd;
     void* newmapped = NULL;
     uint64_t newcap = 0;
-    status _status = { .ok = 1 };
+    status_t  _status = { .ok = 1 };
 
     if ((fd = open(sl->dataname, O_RDWR)) < 0) {
         return statusnotok2(_status, "open(%d): %s", errno, strerror(errno));
@@ -405,18 +405,18 @@ static status expanddatafile(skiplist* sl) {
     if (madvise(newmapped, newcap, MADV_RANDOM) == -1) {
         return statusnotok2(_status, "madvise(%d): %s", errno, strerror(errno));
     }
-    sl->data = (skipdata*)newmapped;
+    sl->data = (skipdata_t*)newmapped;
     sl->data->mapped = newmapped;
     sl->data->mapcap = newcap;
 
     return _status;
 }
 
-status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
-    status _status = { .ok = 1 };
-    metanode* head = NULL;
-    metanode* curr = NULL;
-    metanode* update[SKIPLIST_MAXLEVEL] = { NULL };
+status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
+    status_t _status = { .ok = 1 };
+    metanode_t* head = NULL;
+    metanode_t* curr = NULL;
+    metanode_t* update[SKIPLIST_MAXLEVEL] = { NULL };
     uint64_t _offsets[] = {};
 
     if (sl == NULL || key == NULL) {
@@ -429,7 +429,7 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
     if (!_status.ok) {
         return _status;
     }
-    if (sl->meta->mapcap - sl->meta->mapsize < (sizeof(metanode) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL + MAX_KEY_LEN)) {
+    if (sl->meta->mapcap - sl->meta->mapsize < (sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL + MAX_KEY_LEN)) {
         sl_unlock(sl, _offsets, 0);
         _status.type = STATUS_SKIPLIST_FULL;
         return statusnotok0(_status, "skiplist is full");
@@ -438,11 +438,11 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
     head = curr = METANODEHEAD(sl);
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
-            metanode* next = METANODE(sl, curr->forwards[level]);
+            metanode_t* next = METANODE(sl, curr->forwards[level]);
             if (next == NULL) {
                 break;
             }
-            datanode* dnode = sl_get_datanode(sl, next->offset);
+            datanode_t* dnode = sl_get_datanode(sl, next->offset);
             int cmp = keycmp(dnode->data, dnode->size, key, key_len);
             if (cmp == 0) {
                 next->value = value;
@@ -458,14 +458,14 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
     }
 
     uint16_t level = random_level(sl->meta->p);
-    metanode* mnode = NULL;
+    metanode_t* mnode = NULL;
     if (sl->metafree[level] != NULL && sl->metafree[level]->head != NULL) {
-        listnode* reuse = NULL;
+        listnode_t* reuse = NULL;
         list_front(sl->metafree[level], &reuse);
-        mnode = (metanode*)(sl->meta->mapped + reuse->value);
+        mnode = (metanode_t*)(sl->meta->mapped + reuse->value);
         list_remove(sl->metafree[level], reuse);
     } else {
-        mnode = (metanode*)(sl->meta->mapped + sl->meta->mapsize + 1);
+        mnode = (metanode_t*)(sl->meta->mapped + sl->meta->mapsize + 1);
     }
     mnode->level = level;
     mnode->flag = METANODE_USED;
@@ -476,14 +476,14 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
         mnode->forwards[i] = 0;
     }
 
-    if (sl->data->mapcap - sl->data->mapsize < sizeof(datanode) + MAX_KEY_LEN) {
+    if (sl->data->mapcap - sl->data->mapsize < sizeof(datanode_t) + MAX_KEY_LEN) {
         _status = expanddatafile(sl);
         if (!_status.ok) {
             sl_unlock(sl, _offsets, 0);
             return _status;
         }
     }
-    datanode* dnode = sl_get_datanode(sl, sl->data->mapsize + 1);
+    datanode_t* dnode = sl_get_datanode(sl, sl->data->mapsize + 1);
     dnode->offset = METANODEPOSITION(sl, mnode);
     dnode->size = key_len;
     memcpy((void*)dnode->data, key, key_len);
@@ -496,7 +496,7 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
         head->level = mnode->level;
     }
     if (update[0] != NULL) {
-        metanode* next = METANODE(sl, update[0]->forwards[0]);
+        metanode_t* next = METANODE(sl, update[0]->forwards[0]);
         if (next != NULL) {
             next->backward = METANODEPOSITION(sl, mnode);
         }
@@ -511,8 +511,8 @@ status sl_put(skiplist* sl, const void* key, size_t key_len, uint64_t value) {
     return sl_unlock(sl, _offsets, 0);
 }
 
-status sl_get_maxkey(skiplist* sl, void** key, size_t* size) {
-    status _status = { .ok = 1 };
+status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
+    status_t _status = { .ok = 1 };
     uint64_t _offsets[] = {};
 
     if (sl == NULL || key == NULL) {
@@ -523,19 +523,19 @@ status sl_get_maxkey(skiplist* sl, void** key, size_t* size) {
     if (!_status.ok) {
         return _status;
     }
-    metanode* mnode = METANODE(sl, sl->meta->tail);
+    metanode_t* mnode = METANODE(sl, sl->meta->tail);
     if (mnode == NULL) {
         return sl_unlock(sl, _offsets, 0);
     }
-    datanode* dnode = sl_get_datanode(sl, mnode->offset);
+    datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
     *key = dnode->data;
     *size = dnode->size;
     return sl_unlock(sl, _offsets, 0);
 }
 
-status sl_rdlock(skiplist* sl, uint64_t offsets[], size_t offsets_n) {
+status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status _status = { .ok = 1 };
+    status_t _status = { .ok = 1 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
@@ -546,9 +546,9 @@ status sl_rdlock(skiplist* sl, uint64_t offsets[], size_t offsets_n) {
     return _status;
 }
 
-status sl_wrlock(skiplist* sl, uint64_t offsets[], size_t offsets_n) {
+status_t sl_wrlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status _status = { .ok = 1 };
+    status_t _status = { .ok = 1 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
@@ -559,9 +559,9 @@ status sl_wrlock(skiplist* sl, uint64_t offsets[], size_t offsets_n) {
     return _status;
 }
 
-status sl_unlock(skiplist* sl, uint64_t offsets[], size_t offsets_n) {
+status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status _status = { .ok = 1 };
+    status_t _status = { .ok = 1 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");

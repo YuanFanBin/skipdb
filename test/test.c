@@ -27,8 +27,8 @@ _options opt = {
 };
 
 void test_skip() {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
     uint64_t value = 0;
 
     s = sl_open(opt.prefix, opt.p, &sl);
@@ -49,8 +49,8 @@ void test_skip() {
 }
 
 void test_put(const char* key, uint64_t value) {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -66,9 +66,9 @@ void test_put(const char* key, uint64_t value) {
 }
 
 void test_get(const char* key) {
-    status s;
+    status_t s;
     uint64_t value = 0;
-    skiplist* sl = NULL;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -80,8 +80,8 @@ void test_get(const char* key) {
 }
 
 void test_del(const char* key) {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -93,8 +93,8 @@ void test_del(const char* key) {
 }
 
 void test_maxkey() {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
     void* key = NULL;
     size_t size = 0;
 
@@ -112,8 +112,8 @@ void test_maxkey() {
 }
 
 void test_print(int isprintnode) {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -124,8 +124,8 @@ void test_print(int isprintnode) {
 }
 
 void test_print_keys() {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -136,8 +136,8 @@ void test_print_keys() {
 }
 
 void test_print_rkeys() {
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
@@ -149,8 +149,8 @@ void test_print_rkeys() {
 
 void benchmarkrand() {
     float e = 0.0;
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
     struct timeval start, stop;
 
     // TEST put
@@ -219,8 +219,8 @@ void benchmarkrand() {
 void benchmarkseq() {
     char str[128];
     float e = 0.0;
-    status s;
-    skiplist* sl = NULL;
+    status_t s;
+    skiplist_t* sl = NULL;
     struct timeval start, stop;
 
     // TEST put
