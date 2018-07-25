@@ -1,0 +1,7 @@
+INCLUDE_DIRECTORIES (../include/)
+ADD_LIBRARY (print print.c)
+ADD_LIBRARY (list list.c)
+ADD_LIBRARY (skiplist list.c skiplist.c)
+SET (THREADS_PREFER_PTHREAD_FLAG ON)
+FIND_PACKAGE (Threads REQUIRED)
+TARGET_LINK_LIBRARIES (skiplist ${CMAKE_THREAD_LIBS_INIT})

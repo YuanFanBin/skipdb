@@ -1,6 +1,12 @@
-cmake_minimum_required(VERSION 3.6)
-project(skipdb C)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.6)
 
-set(CMAKE_C_STANDARD 99)
+SET (CMAKE_BUILD_TYPE "Debug")
+SET (CMAKE_C_STANDARD 99)
+ADD_DEFINITIONS (-DDEBUG)
 
-add_executable(skipdb main.c skipdb.h status.h)
+PROJECT (skipdb C)
+
+ADD_SUBDIRECTORY (src)
+ADD_SUBDIRECTORY (test)
+
+# ADD_EXECUTABLE (skipdb main.c include/skipdb.h include/status.h)
