@@ -106,12 +106,12 @@ int check_db(skipdb_t *db, skiplist_t **skiplist_need_tidy) {
 void tidy(skiplist_t *sl) {
     // 获取所有的 freelist
     // 排序，聚合
-    // 遍历，条件 最大长度。1/10 整体加锁
+    // 遍历，条件 最大长度。整理之后，如果还有空洞，则整体加锁，移动数据，修改指针，删除free，解锁。
     // // 判断空洞大小 和 后面数据的大小
     // // free >= data 先复制数据，然后修改指针
     // // free < data
     // // // free >= 8k, 存在部分 data <= free 先复制数据，然后加锁，修改指针，删除free，解锁
-    // // // free < 8k 先锁住data，然后移动，修改指针，删除free，解锁
+    // // // free < 8k 先锁住data，然后移动数据，修改指针，删除free，解锁
 }
 
 void *defrag_start(void *arg) {
