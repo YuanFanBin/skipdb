@@ -54,11 +54,13 @@ typedef struct datanode_s {
     void* data[0];
 } datanode_t;
 
-typedef struct skipdata_t {
+typedef struct skipdata_s {
     uint64_t mapsize;
     uint64_t mapcap;
     void* mapped;
 } skipdata_t;
+
+struct skipsplit_s;
 
 typedef struct skiplist_s {
     pthread_rwlock_t rwlock;
@@ -68,7 +70,14 @@ typedef struct skiplist_s {
     list_t* datafree;
     char* metaname;
     char* dataname;
+    struct skipsplit_s* split;
 } skiplist_t;
+
+typedef struct skipsplit_s {
+    skiplist_t* redolog;
+    skiplist_t* left;
+    skiplist_t* right;
+} skipsplit_t;
 
 status_t sl_open(const char* prefix, float p, skiplist_t** sl);
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value);
