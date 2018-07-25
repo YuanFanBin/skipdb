@@ -1,3 +1,3 @@
 INCLUDE_DIRECTORIES (../include/)
-ADD_EXECUTABLE (test test.c)
-TARGET_LINK_LIBRARIES (test skiplist print list)
+ADD_EXECUTABLE (testmain test.c)
+TARGET_LINK_LIBRARIES (testmain skiplist print list)

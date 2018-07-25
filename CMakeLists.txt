@@ -8,5 +8,3 @@ PROJECT (skipdb C)
 
 ADD_SUBDIRECTORY (src)
 ADD_SUBDIRECTORY (test)
-
-# ADD_EXECUTABLE (skipdb main.c include/skipdb.h include/status.h)
