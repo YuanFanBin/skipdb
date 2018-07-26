@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "status.h"
+#include "util.h"
 #include <fcntl.h>
 #include <pthread.h>
 #include <stddef.h>
@@ -43,7 +44,7 @@ typedef struct metanode_s {
     uint64_t offset;      // key数据存储在data文件中的偏移量
     uint64_t value;       // value值
     uint64_t backward;    // 跳表节点指向的前置节点偏移量
-    uint64_t forwards[0]; // 跳表节点只想的后置节点偏移量，forwards个数由level决定
+    uint64_t forwards[0]; // 跳表节点指向的后置节点偏移量，forwards个数由level决定
 } metanode_t;
 
 typedef struct skipmeta_s {
