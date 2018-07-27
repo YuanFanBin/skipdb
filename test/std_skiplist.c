@@ -86,6 +86,18 @@ void test_del(const char* key) {
     ssl_close(ssl);
 }
 
+void test_print(int isprintnode) {
+    status_t s;
+    sskiplist_t* ssl = NULL;
+
+    s = ssl_open(opt.prefix, opt.p, &ssl);
+    if (!s.ok) {
+        log_fatal("%s", s.errmsg);
+    }
+    ssl_print(ssl, stdout, isprintnode);
+    ssl_close(ssl);
+}
+
 void benchmarkrand() {
     float e = 0.0;
     status_t s;
@@ -159,6 +171,7 @@ void usage() {
     log_info("\t./test  put <key> <value>\n"
            "\t        get <key>\n"
            "\t        del <key>\n"
+           "\t        print <isprintnode>\n"
            "\t        rand <count> <isequal> <p>\n"
            "\t        sskip\n");
     exit(1);
@@ -180,6 +193,12 @@ int main(int argc, char *argv[]) {
         test_get(argv[2]);
     } else if (argvequal("del", argv[1])) {
         test_del(argv[2]);
+    } else if (argvequal("print", argv[1])) {
+        int isprintnode = 0;
+        if (argc == 3) {
+            isprintnode = atoi(argv[2]);
+        }
+        test_print(isprintnode);
 
     } else if (argvequal("rand", argv[1])) {
         opt.count = atoi(argv[2]);

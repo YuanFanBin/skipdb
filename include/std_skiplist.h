@@ -8,9 +8,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define SSL_NODE_HEAD           0x80    // 跳表头节点
-#define SSL_NODE_USED           0x0     // 跳表节点已被使用
-#define SSL_NODE_LAZY_DELETED   0x01    // 跳表节点已被惰性删除
+#define SSL_NODE_HEAD       0x80 // 跳表头节点
+#define SSL_NODE_DELETED    0x02 // 跳表节点已被惰性删除
+#define SSL_NODE_USED       0x01 // 跳表节点已被使用
+#define SSL_NODE_NONE       0x00 // 空节点（未被使用）
 
 #define SSL_DEFAULT_FILE_SIZE   (uint64_t)(1048576) // 默认文件大小(1M)
 
@@ -71,9 +72,12 @@ typedef struct std_skiplist_s {
 } sskiplist_t;
 
 status_t ssl_open(const char* filename, float p, sskiplist_t** ssl);
+status_t ssl_load(const char* filename, sskiplist_t** ssl);
 status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value);
 status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* value);
+status_t ssl_get_maxkey(sskiplist_t* ssl, void** key, size_t* size);
 status_t ssl_del(sskiplist_t* ssl, const void* key, size_t key_len);
+status_t ssl_delput(sskiplist_t* ssl, const void* key, size_t key_len);
 status_t ssl_rdlock(sskiplist_t* ssl);
 status_t ssl_wrlock(sskiplist_t* ssl);
 status_t ssl_unlock(sskiplist_t* ssl);

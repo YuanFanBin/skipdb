@@ -8,6 +8,15 @@
 #include <unistd.h>
 
 int compare(const void* k1, size_t l1, const void* k2, size_t l2) {
+    if (k1 == NULL && k2 == NULL) {
+        return 0;
+    }
+    if (k1 == NULL) {
+        return -1;
+    }
+    if (k2 == NULL) {
+        return 1;
+    }
     size_t min = l1 < l2 ? l1 : l2;
     int cmp = memcmp(k1, k2, min);
     if (cmp == 0) {

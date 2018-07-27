@@ -45,7 +45,6 @@ status_t ssl_open(const char* filename, float p, sskiplist_t** ssl) {
     if ((err = pthread_rwlock_init(&(*ssl)->rwlock, NULL)) != 0) {
         return statusnotok2(_status, "pthread_rwlock_init(%d): %s", err, strerror(err));
     }
-    // open meta/data file
     memcpy((*ssl)->filename, filename, strlen(filename) + 1);
 
     _status = fileopen((*ssl)->filename, &fd, &mapcap, SSL_DEFAULT_FILE_SIZE);
@@ -69,6 +68,48 @@ status_t ssl_open(const char* filename, float p, sskiplist_t** ssl) {
     } else {
         createindex(*ssl, mapped, mapcap, p);
     }
+    return _status;
+}
+
+status_t ssl_load(const char* filename, sskiplist_t** ssl) {
+    int err;
+    int fd = -1;
+    struct stat s;
+    void* mapped = NULL;
+    status_t _status = { .ok = 1 };
+
+    if (filename == NULL) {
+        return statusnotok0(_status, "filename is NULL");
+    }
+
+    *ssl = (sskiplist_t*)malloc(sizeof(sskiplist_t));
+    (*ssl)->filename = (char*)malloc(sizeof(char) * strlen(filename) + 1);
+    if ((err = pthread_rwlock_init(&(*ssl)->rwlock, NULL)) != 0) {
+        return statusnotok2(_status, "pthread_rwlock_init(%d): %s", err, strerror(err));
+    }
+    memcpy((*ssl)->filename, filename, strlen(filename) + 1);
+    if (access(filename, F_OK) != 0) {
+        ssl_close(*ssl);
+        return statusnotok2(_status, "access(%d): %s", errno, strerror(err));
+    }
+    if ((fd = open(filename, O_RDWR)) < 0) {
+        ssl_close(*ssl);
+        return statusnotok2(_status, "open(%d): %s", errno, strerror(errno));
+    }
+    if ((fstat(fd, &s)) == -1) {
+        close(fd);
+        ssl_close(*ssl);
+        return statusnotok2(_status, "fstat(%d): %s", errno, strerror(errno));
+    }
+    _status = filemmap(fd, s.st_size, &mapped);
+    close(fd);
+    if (!_status.ok) {
+        ssl_close(*ssl);
+        return _status;
+    }
+    (*ssl)->index = (sskipindex_t*)mapped;
+    (*ssl)->index->mapcap = s.st_size;
+    (*ssl)->index->mapped = mapped;
     return _status;
 }
 
@@ -97,7 +138,7 @@ static status_t expand(sskiplist_t *ssl) {
     return _status;
 }
 
-status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value) {
+status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value, uint8_t flag) {
     status_t _status = { .ok = 1 };
     sskipnode_t* head = NULL;
     sskipnode_t* curr = NULL;
@@ -130,6 +171,7 @@ status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t val
             }
             int cmp = compare(next->key, (size_t)next->key_len, key, key_len);
             if (cmp == 0) {
+                next->flag = flag;
                 next->value = value;
                 return ssl_unlock(ssl);
             }
@@ -146,7 +188,7 @@ status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t val
     sskipnode_t* node = (sskipnode_t*)(ssl->index->mapped + ssl->index->mapsize + sizeof(uint64_t) * level + 1);
     node->key_len = (uint16_t)key_len;
     node->level = level;
-    node->flag = 0;
+    node->flag = flag;
     node->backward = SSL_NODEPOSITION(ssl, curr);
     node->value = value;
     memcpy(node->key, key, key_len);
@@ -173,6 +215,15 @@ status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t val
     return ssl_unlock(ssl);
 }
 
+status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value) {
+    return _ssl_put(ssl, key, key_len, value, SSL_NODE_USED);
+}
+
+// ssl_delput 删除指定key，若key不存在则插入key并将key标志置为已删除
+status_t ssl_delput(sskiplist_t* ssl, const void* key, size_t key_len) {
+    return _ssl_put(ssl, key, key_len, 0, SSL_NODE_DELETED);
+}
+
 status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* value) {
     status_t _status = { .ok = 1 };
 
@@ -196,6 +247,12 @@ status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* va
                 continue;
             }
             if (cmp == 0) {
+                if ((next->flag & SSL_NODE_DELETED) == SSL_NODE_DELETED) {
+                    _status.ok = 0;
+                    _status.type = STATUS_SSL_LAZY_DELETED;
+                    ssl_unlock(ssl);
+                    return _status;
+                }
                 *value = next->value;
                 return ssl_unlock(ssl);
             }
@@ -203,6 +260,27 @@ status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* va
         }
     }
     return ssl_unlock(ssl);
+}
+
+status_t ssl_get_maxkey(sskiplist_t* ssl, void** key, size_t* size) {
+    status_t _status = { .ok = 1 };
+
+    if (ssl == NULL) {
+        return statusnotok0(_status, "sskiplist is NULL");
+    }
+    if (ssl->index->count == 0) {
+        return _status;
+    }
+    sskipnode_t* snode = SSL_NODE(ssl, ssl->index->tail);
+    while (snode != NULL) {
+        if (snode->flag == SSL_NODE_USED) {
+            *key = snode->key;
+            *size = snode->key_len;
+            break;
+        }
+        snode = SSL_NODE(ssl, snode->backward);
+    }
+    return _status;
 }
 
 status_t ssl_del(sskiplist_t* ssl, const void* key, size_t key_len) {
@@ -230,7 +308,7 @@ status_t ssl_del(sskiplist_t* ssl, const void* key, size_t key_len) {
             if (cmp == 1) {
                 break;
             }
-            next->flag = SSL_NODE_LAZY_DELETED;
+            next->flag = SSL_NODE_DELETED;
             --ssl->index->count;
             return ssl_unlock(ssl);
         }
@@ -288,8 +366,10 @@ status_t ssl_sync(sskiplist_t* ssl) {
     return _status;
 }
 
-static status_t _ssl_close(sskiplist_t* ssl) {
+status_t _ssl_close(sskiplist_t* ssl, int is_remove_file) {
+    int err;
     status_t _status = { .ok = 1 };
+
     if (ssl == NULL) {
         return _status;
     }
@@ -298,16 +378,10 @@ static status_t _ssl_close(sskiplist_t* ssl) {
             return statusnotok2(_status, "munmap(%d): %s", errno, strerror(errno));
         }
     }
-    return _status;
-}
-
-status_t ssl_close(sskiplist_t* ssl) {
-    int err;
-    status_t _status = _ssl_close(ssl);
-    if (!_status.ok) {
-        return _status;
-    }
     if (ssl->filename != NULL) {
+        if (is_remove_file) {
+            remove(ssl->filename);
+        }
         free(ssl->filename);
         ssl->filename = NULL;
     }
@@ -318,22 +392,10 @@ status_t ssl_close(sskiplist_t* ssl) {
     return _status;
 }
 
-status_t ssl_destroy(sskiplist_t* ssl) {
-    int err;
-    status_t _status = _ssl_close(ssl);
+status_t ssl_close(sskiplist_t* ssl) {
+    return _ssl_close(ssl, 0);
+}
 
-    if (!_status.ok) {
-        return _status;
-    }
-    if (ssl->filename != NULL) {
-        if (remove(ssl->filename) != 0) {
-            return statusnotok2(_status, "remove(%d): %s", errno, strerror(errno));
-        }
-        ssl->filename = NULL;
-    }
-    if ((err = pthread_rwlock_destroy(&ssl->rwlock)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_destroy(%d): %s", err, strerror(err));
-    }
-    free(ssl);
-    return _status;
+status_t ssl_destroy(sskiplist_t* ssl) {
+    return _ssl_close(ssl, 1);
 }

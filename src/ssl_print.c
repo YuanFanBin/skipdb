@@ -7,7 +7,7 @@ static void printnode(sskiplist_t* ssl, FILE* stream, sskipnode_t* node, uint64_
     if (node == NULL) {
         return;
     }
-    fprintf(stream, "[\033[36m%8lu\033[0m]: level = %d, flag = 0x%04x, backward = %ld, value = %ld, forwards = [%ld",
+    fprintf(stream, "[\033[36m%8lu\033[0m]: level = %d, flag = 0x%02x, backward = %ld, value = %ld, forwards = [%ld",
         pos,
         node->level,
         node->flag,

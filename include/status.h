@@ -6,6 +6,8 @@
 #define STATUS_SKIPLIST_FULL 1
 #define STATUS_SKIPLIST_LOAD 2
 
+#define STATUS_SSL_LAZY_DELETED 100
+
 typedef struct status_s {
     int ok;
     int type;

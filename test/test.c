@@ -1,6 +1,6 @@
-#include "../include/print.h"
 #include "../include/list.h"
 #include "../include/skiplist.h"
+#include "../include/sl_print.h"
 #include "test.h"
 #include <getopt.h>
 #include <stdint.h>
@@ -211,7 +211,7 @@ void benchmarkrand() {
 
     // FREE
     freekeys(opt.count);
-    sl_close(sl);
+    sl_destroy(sl);
 }
 
 void benchmarkseq() {

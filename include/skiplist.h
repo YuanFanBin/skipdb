@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "status.h"
+#include "std_skiplist.h"
 #include "util.h"
 #include <fcntl.h>
 #include <pthread.h>
@@ -16,16 +17,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define METANODE_HEAD 0x8000    // 跳表头节点
-#define METANODE_DELETED 0x0002 // 跳表节点已被惰性删除
-#define METANODE_USED 0x0001    // 跳表节点已被使用
-#define METANODE_NONE 0x0000    // 空节点(未被使用过)
+#define METANODE_HEAD       0x8000 // 跳表头节点
+#define METANODE_DELETED    0x0002 // 跳表节点已被惰性删除
+#define METANODE_USED       0x0001 // 跳表节点已被使用
+#define METANODE_NONE       0x0000 // 空节点(未被使用过)
 
 // 元数据文件最大大小（不自动扩容）
 // 最大可容纳：4 * 1024 * 1024 / (sizeof(metanode) + sizeof(uint64_t) = 104857个key
-// 最小可容纳：4 * 1024 * 1024 / (sizeof(metanode) + sizeof(uint64_t) * 64) = 7710个key
+// 最小可容纳：4 * 1024 * 1024 / (sizeof(metanode) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL) = 7710个key
 #define DEFAULT_METAFILE_SIZE   (uint64_t)(4194304) // 默认文件大小(4M)
 // 数据(key)文件最大大小（自动扩容）
+// 不能低于sizeof(datanode_t) + MAX_KEN_LEN
 #define DEFAULT_DATAFILE_SIZE   (uint64_t)(4194304) // 默认数据文件大小为(4M)
 
 #define MAX_KEY_LEN         65535   // key最大长度(1 << 16 - 1), ::uint16_t datanode->size::
@@ -34,9 +36,14 @@
 #define SKIPLIST_STATE_NORMAL 1
 #define SKIPLIST_STATE_DEFRAG 2     // 跳表data文件碎片整理
 #define SKIPLIST_STATE_SPLITED 3    // 被分裂者
-#define SKIPLIST_STATE_REDO_LOG 4   // redo log
+// #define SKIPLIST_STATE_REDO_LOG 4   // redo log
 #define SKIPLIST_STATE_SPLITER 5    // 分裂者（left, right)
-#define SKIPLIST_STATE_MERGE_LOG 6  // 分裂者合并redo log
+// #define SKIPLIST_STATE_MERGE_LOG 6  // 分裂者合并redo log
+#define SKIPLIST_STATE_SPLIT_DONE 7 // 分裂完成
+
+#define META_SUFFIX     ".sl.meta"
+#define DATA_SUFFIX     ".sl.data"
+#define REDOLOG_SUFFIX  ".sl.split.redolog"
 
 typedef struct metanode_s {
     uint32_t level;       // 当前节点高度
@@ -76,6 +83,7 @@ typedef struct skiplist_s {
     skipdata_t* data;                    // 数据跳表
     list_t* metafree[SKIPLIST_MAXLEVEL]; // 空闲元数据节点（仅存偏移量）
     list_t* datafree;                    // 空闲数据节点（仅存偏移量）
+    char* prefix;                        // 映射文件的文件名前缀
     char* metaname;                      // 映射的元数据文件名
     char* dataname;                      // 映射的数据文件名
     struct skipsplit_s* split;           // 分裂跳表
@@ -83,9 +91,9 @@ typedef struct skiplist_s {
 } skiplist_t;
 
 typedef struct skipsplit_s {
-    skiplist_t* redolog;    // 分裂时原始跳表使用的读写跳表：redo log
-    skiplist_t* left;       // 原始跳表分裂成的左半步分跳表
-    skiplist_t* right;      // 原始跳表分裂成的有半步分跳表
+    sskiplist_t* redolog; // 分裂时原始跳表使用的读写跳表：redo log
+    skiplist_t* left;     // 原始跳表分裂成的左半步分跳表
+    skiplist_t* right;    // 原始跳表分裂成的有半步分跳表
 } skipsplit_t;
 
 status_t sl_open(const char* prefix, float p, skiplist_t** sl);
