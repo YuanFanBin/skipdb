@@ -109,11 +109,11 @@ void test_maxkey() {
     free(buff);
 }
 
-void test_print(int isprintnode) {
+void test_print(const char* sk, int isprintnode) {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(sk, opt.p, &sl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -211,7 +211,8 @@ void benchmarkrand() {
 
     // FREE
     freekeys(opt.count);
-    sl_destroy(sl);
+    // sl_destroy(sl);
+    sl_close(sl);
 }
 
 void benchmarkseq() {
@@ -274,7 +275,7 @@ void usage() {
            "\t        skip\n"
            "\t        keys\n"
            "\t        rkeys\n"
-           "\t        print <isprintnode>\n"
+           "\t        print <skiplist prefix> <isprintnode>\n"
            "\t        rand <count> <isequal> <p>\n"
            "\t        seq <count> <p>\n");
     exit(1);
@@ -293,9 +294,9 @@ int main(int argc, char *argv[]) {
     } else if (argvequal("print", argv[1])) {
         int isprintnode = 0;
         if (argc == 3) {
-            isprintnode = atoi(argv[2]);
+            isprintnode = atoi(argv[3]);
         }
-        test_print(isprintnode);
+        test_print(argv[2], isprintnode);
     } else if (argvequal("keys", argv[1])) {
         test_print_keys();
     } else if (argvequal("rkeys", argv[1])) {
