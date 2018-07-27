@@ -1,6 +1,7 @@
 #ifndef SKIPDB_DEFRAG_H
 #define SKIPDB_DEFRAG_H
 
+
 typedef struct {
     // 小于 min_income 不会整理。避免，后面空洞，价值很大，频繁整理。
     int min_income;
@@ -15,5 +16,7 @@ typedef struct {
 } defrag_option_t;
 
 void *defrag_start(void *arg);
+
+void notify_defrag();
 
 #endif //SKIPDB_DEFRAG_H
