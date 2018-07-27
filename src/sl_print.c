@@ -20,7 +20,7 @@ static void printmetanode(FILE* stream, const char* prefix, metanode_t* mnode, u
     for (int i = 1; i < (int)mnode->level; ++i) {
         fprintf(stream, ", %ld", mnode->forwards[i]);
     }
-    fprintf(stream, "],");
+    fprintf(stream, "], ");
 }
 
 static void printdatanode(FILE* stream, const char* prefix, datanode_t* dnode) {
@@ -67,8 +67,9 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
     // skiplist
     curr = METANODEHEAD(sl);
     fprintf(stream, "%s\033[31m[ skiplist ]\033[0m\n", prefix);
-    fprintf(stream, "%smetaname = %s, dataname = %s\n",
+    fprintf(stream, "%sstate = %d, metaname = %s, dataname = %s\n",
             prefix,
+            sl->state,
             sl->metaname,
             sl->dataname);
 

@@ -14,11 +14,11 @@ static void printnode(sskiplist_t* ssl, FILE* stream, const char* prefix, sskipn
         node->flag,
         node->backward,
         node->value,
-        node->forwards[0]);
-    for (int i = -node->level; i > 0; i--) {
+        node->forwards[-1]);
+    for (int i = -2; i > -node->level; --i) {
         fprintf(stream, ", %ld", node->forwards[i]);
     }
-    fprintf(stream, "],");
+    fprintf(stream, "], ");
     char* buff = (char*)malloc(sizeof(char*) * node->key_len + 1);
     memcpy(buff, node->key, node->key_len);
     buff[node->key_len] = '\0';

@@ -7,17 +7,17 @@
 typedef struct _options {
     int      count;
     float    p;
-    char     prefix[128];
+    char*    name;
     int      isequal;
     int      issrand;
 } _options;
 
 _options opt = {
-    .count    = 0,                 // 测试数量
-    .p        = 0.25,              // skip list p
-    .prefix   = "sskiplist.ssl",   // 测试文件名
-    .isequal  = 0,                 // 是否等长随机key
-    .issrand  = 0,                 // 是否设置随机种子
+    .count   = 0,    // 测试数量
+    .p       = 0.25, // skip list p
+    .name    = NULL, // 测试文件名
+    .isequal = 0,    // 是否等长随机key
+    .issrand = 0,    // 是否设置随机种子
 };
 
 void test_sskip() {
@@ -25,7 +25,7 @@ void test_sskip() {
     sskiplist_t* ssl = NULL;
     uint64_t value = 0;
 
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -46,7 +46,7 @@ void test_put(const char* key, uint64_t value) {
     status_t s;
     sskiplist_t* ssl = NULL;
 
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -64,7 +64,7 @@ void test_get(const char* key) {
     uint64_t value = 0;
     sskiplist_t* ssl = NULL;
 
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -77,7 +77,7 @@ void test_del(const char* key) {
     status_t s;
     sskiplist_t* ssl = NULL;
 
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -90,7 +90,7 @@ void test_print(int isprintnode) {
     status_t s;
     sskiplist_t* ssl = NULL;
 
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -105,7 +105,7 @@ void benchmarkrand() {
     struct timeval start, stop;
 
     // TEST put
-    s = ssl_open(opt.prefix, opt.p, &ssl);
+    s = ssl_open(opt.name, opt.p, &ssl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
@@ -168,12 +168,13 @@ void benchmarkrand() {
 }
 
 void usage() {
-    log_info("\t./ssl   put <key> <value>\n"
-           "\t        get <key>\n"
-           "\t        del <key>\n"
-           "\t        print <isprintnode>\n"
-           "\t        rand <count> <isequal> <p>\n"
-           "\t        sskip\n");
+    log_info("  ssl: std skiplist test tool.\n"
+           "\tput    <std skiplist name> <key> <value>\n"
+           "\tget    <std skiplist name> <key>\n"
+           "\tdel    <std skiplist name> <key>\n"
+           "\tskip   <std skiplist name>\n"
+           "\tprint  <std skiplist name> <isprintnode>\n"
+           "\trand   <std skiplist name> <count> <isequal> <p>\n");
     exit(1);
 }
 
@@ -185,25 +186,31 @@ int main(int argc, char *argv[]) {
         srandom(time(NULL));
     }
 
-    if (argvequal("sskip", argv[1])) {
+    if (argvequal("skip", argv[1])) {
+        opt.name = argv[2];
         test_sskip();
     } else if (argvequal("put", argv[1])) {
-        test_put(argv[2], atoi(argv[3]));
+        opt.name = argv[2];
+        test_put(argv[3], atoi(argv[4]));
     } else if (argvequal("get", argv[1])) {
-        test_get(argv[2]);
+        opt.name = argv[2];
+        test_get(argv[3]);
     } else if (argvequal("del", argv[1])) {
-        test_del(argv[2]);
+        opt.name = argv[2];
+        test_del(argv[3]);
     } else if (argvequal("print", argv[1])) {
+        opt.name = argv[2];
         int isprintnode = 0;
-        if (argc == 3) {
-            isprintnode = atoi(argv[2]);
+        if (argc == 4) {
+            isprintnode = atoi(argv[3]);
         }
         test_print(isprintnode);
 
     } else if (argvequal("rand", argv[1])) {
-        opt.count = atoi(argv[2]);
-        opt.isequal = atoi(argv[3]);
-        opt.p = atof(argv[4]);
+        opt.name = argv[2];
+        opt.count = atoi(argv[3]);
+        opt.isequal = atoi(argv[4]);
+        opt.p = atof(argv[5]);
         benchmarkrand();
 
     } else {

@@ -483,8 +483,9 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
                 sl_unlock(sl, _offsets, 0);
                 return _status;
             }
+        } else {
+            return statusnotok1(_status, "current state(%d) unable expand meta file", sl->state);
         }
-        return statusnotok1(_status, "current state(%d) unable expand meta file", sl->state);
     }
 
     head = curr = METANODEHEAD(sl);
