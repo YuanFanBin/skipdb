@@ -37,7 +37,7 @@ void test_sskip() {
     ssl_get(ssl, "def", 3, &value);
     printf("[\033[40;5m%s\033[0m] = %ld\n", "def", value);
 
-    ssl_print(ssl, stdout, 1);
+    ssl_print(ssl, stdout, "", 1);
 
     ssl_close(ssl);
 }
@@ -94,7 +94,7 @@ void test_print(int isprintnode) {
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
-    ssl_print(ssl, stdout, isprintnode);
+    ssl_print(ssl, stdout, "", isprintnode);
     ssl_close(ssl);
 }
 
@@ -121,7 +121,7 @@ void benchmarkrand() {
             }
         }
         gettimeofday(&stop, NULL);
-        ssl_print(ssl, stdout, 0);
+        ssl_print(ssl, stdout, "", 0);
         e = elapse(stop, start);
         log_info("%s: put(%u * %dB key) %fs, %fM/s, %fw key/s\n",
             __FUNCTION__,
@@ -168,7 +168,7 @@ void benchmarkrand() {
 }
 
 void usage() {
-    log_info("\t./test  put <key> <value>\n"
+    log_info("\t./ssl   put <key> <value>\n"
            "\t        get <key>\n"
            "\t        del <key>\n"
            "\t        print <isprintnode>\n"

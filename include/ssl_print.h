@@ -7,7 +7,7 @@
 #define SSL_STDOUT1(fmt, arg1)          dprintf(STDOUT_FILENO, (fmt), (arg1))
 #define SSL_STDOUT2(fmt, arg1, arg2)    dprintf(STDOUT_FILENO, (fmt), (arg1), (arg2))
 
-void ssl_print(sskiplist_t* ssl, FILE* stream, int isprintnode);
+void ssl_print(sskiplist_t* ssl, FILE* stream, const char* prefix, int isprintnode);
 void ssl_print_keys(sskiplist_t* ssl, FILE* stream);
 void ssl_print_rkeys(sskiplist_t* ssl, FILE* stream);
 

@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void printnode(sskiplist_t* ssl, FILE* stream, sskipnode_t* node, uint64_t pos) {
+static void printnode(sskiplist_t* ssl, FILE* stream, const char* prefix, sskipnode_t* node, uint64_t pos) {
     if (node == NULL) {
         return;
     }
-    fprintf(stream, "[\033[36m%8lu\033[0m]: level = %d, flag = 0x%02x, backward = %ld, value = %ld, forwards = [%ld",
+    fprintf(stream, "%s[\033[36m%8lu\033[0m]: level = %d, flag = 0x%02x, backward = %ld, value = %ld, forwards = [%ld",
+        prefix,
         pos,
         node->level,
         node->flag,
@@ -25,20 +26,20 @@ static void printnode(sskiplist_t* ssl, FILE* stream, sskipnode_t* node, uint64_
     free(buff);
 }
 
-void ssl_print(sskiplist_t* ssl, FILE* stream, int isprintnode) {
+void ssl_print(sskiplist_t* ssl, FILE* stream, const char* prefix, int isprintnode) {
     int lvlcnt[SSL_MAXLEVEL] = { 0 };
     sskipnode_t* curr = NULL;
     sskipnode_t* next = NULL;
 
     curr = SSL_NODEHEAD(ssl);
     if (isprintnode) {
-        fprintf(stream, "\033[32m[ node ]\033[0m\n");
+        fprintf(stream, "%s\033[32m[ node ]\033[0m\n", prefix);
         while (1) {
             next = SSL_NODE(ssl, curr->forwards[-1]);
             if (next == NULL) {
                 break;
             }
-            printnode(ssl, stream, next, (uint64_t)((void*)next - ssl->index->mapped));
+            printnode(ssl, stream, prefix, next, (uint64_t)((void*)next - ssl->index->mapped));
             curr = next;
         }
     }
@@ -54,15 +55,16 @@ void ssl_print(sskiplist_t* ssl, FILE* stream, int isprintnode) {
 
     // skiplist
     curr = SSL_NODEHEAD(ssl);
-    fprintf(stream, "\033[31m[ skiplist ]\033[0m\n");
-    fprintf(stream, "filename = %s\n", ssl->filename);
+    fprintf(stream, "%s\033[31m[ skiplist ]\033[0m\n", prefix);
+    fprintf(stream, "%sfilename = %s\n", prefix, ssl->filename);
 
     // skiplist->index
-    fprintf(stream, "\033[31m[ skiplist->index ]\033[0m\n");
+    fprintf(stream, "%s\033[31m[ skiplist->index ]\033[0m\n", prefix);
     for (int i = 0; i < curr->level; ++i) {
-        fprintf(stream, "[LEVEL %2d]: %d\n", i + 1, lvlcnt[i + 1]);
+        fprintf(stream, "%s[LEVEL %2d]: %d\n", prefix, i + 1, lvlcnt[i + 1]);
     }
-    fprintf(stream, "\033[34mcount = %d, p = %.2f, tail = %ld, mapsize = %ldB(%.2lfM), mapcap = %ldB(%.2lfM)\033[0m\n",
+    fprintf(stream, "%s\033[34mcount = %d, p = %.2f, tail = %ld, mapsize = %ldB(%.2lfM), mapcap = %ldB(%.2lfM)\033[0m\n",
+            prefix,
             ssl->index->count,
             ssl->index->p,
             ssl->index->tail,

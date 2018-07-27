@@ -9,19 +9,19 @@
 #include <string.h>
 
 typedef struct _options {
-    int      count;
-    float    p;
-    char     prefix[128];
-    int      isequal;
-    int      issrand;
+    int     count;
+    float   p;
+    char*   prefix;
+    int     isequal;
+    int     issrand;
 } _options;
 
 _options opt = {
-    .count    = 0,                 // 测试数量
-    .p        = 0.25,              // skip list p
-    .prefix   = "test",            // 测试文件名
-    .isequal  = 0,                 // 是否等长随机key
-    .issrand  = 0,                 // 是否设置随机种子
+    .count    = 0,    // 测试数量
+    .p        = 0.25, // skip list p
+    .prefix   = NULL, // 测试文件名
+    .isequal  = 0,    // 是否等长随机key
+    .issrand  = 0,    // 是否设置随机种子
 };
 
 void test_skip() {
@@ -41,7 +41,7 @@ void test_skip() {
     sl_get(sl, "def", 3, &value);
     printf("[\033[40;5m%s\033[0m] = %ld\n", "def", value);
 
-    sl_print(sl, stdout, 1);
+    sl_print(sl, stdout, "", 1);
 
     sl_close(sl);
 }
@@ -109,15 +109,15 @@ void test_maxkey() {
     free(buff);
 }
 
-void test_print(const char* sk, int isprintnode) {
+void test_print(int isprintnode) {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(sk, opt.p, &sl);
+    s = sl_open(opt.prefix, opt.p, &sl);
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
-    sl_print(sl, stdout, isprintnode);
+    sl_print(sl, stdout, "", isprintnode);
     sl_close(sl);
 }
 
@@ -168,7 +168,7 @@ void benchmarkrand() {
             }
         }
         gettimeofday(&stop, NULL);
-        sl_print(sl, stdout, 0);
+        sl_print(sl, stdout, "", 0);
         e = elapse(stop, start);
         log_info("%s: put(%u * %dB key) %fs, %fM/s, %fw key/s\n",
             __FUNCTION__,
@@ -237,7 +237,7 @@ void benchmarkseq() {
         }
     }
     gettimeofday(&stop, NULL);
-    sl_print(sl, stdout, 0);
+    sl_print(sl, stdout, "", 0);
     e = elapse(stop, start);
     log_info("%s: put(%u * (key_[0-%u]) key) %fs, %fM/s, %fw key/s\n",
         __FUNCTION__,
@@ -268,16 +268,17 @@ void benchmarkseq() {
 }
 
 void usage() {
-    log_info("\t./test  put <key> <value>\n"
-           "\t        get <key>\n"
-           "\t        del <key>\n"
-           "\t        maxkey\n"
-           "\t        skip\n"
-           "\t        keys\n"
-           "\t        rkeys\n"
-           "\t        print <skiplist prefix> <isprintnode>\n"
-           "\t        rand <count> <isequal> <p>\n"
-           "\t        seq <count> <p>\n");
+    log_info("  sl: skiplist test tool.\n"
+           "\tput    <skiplist prefix> <key> <value>\n"
+           "\tget    <skiplist prefix> <key>\n"
+           "\tdel    <skiplist prefix> <key>\n"
+           "\tmaxkey <skiplist prefix>\n"
+           "\tskip   <skiplist prefix>\n"
+           "\tkeys   <skiplist prefix>\n"
+           "\trkeys  <skiplist prefix>\n"
+           "\tprint  <skiplist prefix> <isprintnode>\n"
+           "\trand   <skiplist prefix> <count> <isequal> <p>\n"
+           "\tseq    <skiplist prefix> <count> <p>\n");
     exit(1);
 }
 
@@ -293,32 +294,41 @@ int main(int argc, char *argv[]) {
         test_skip();
     } else if (argvequal("print", argv[1])) {
         int isprintnode = 0;
-        if (argc == 3) {
+        if (argc == 4) {
             isprintnode = atoi(argv[3]);
         }
-        test_print(argv[2], isprintnode);
+        opt.prefix = argv[2];
+        test_print(isprintnode);
     } else if (argvequal("keys", argv[1])) {
+        opt.prefix = argv[2];
         test_print_keys();
     } else if (argvequal("rkeys", argv[1])) {
+        opt.prefix = argv[2];
         test_print_rkeys();
 
     } else if (argvequal("put", argv[1])) {
-        test_put(argv[2], atoi(argv[3]));
+        opt.prefix = argv[2];
+        test_put(argv[3], atoi(argv[4]));
     } else if (argvequal("get", argv[1])) {
-        test_get(argv[2]);
+        opt.prefix = argv[2];
+        test_get(argv[3]);
     } else if (argvequal("del", argv[1])) {
-        test_del(argv[2]);
+        opt.prefix = argv[2];
+        test_del(argv[3]);
     } else if (argvequal("maxkey", argv[1])) {
+        opt.prefix = argv[2];
         test_maxkey();
 
     } else if (argvequal("rand", argv[1])) {
-        opt.count = atoi(argv[2]);
-        opt.isequal = atoi(argv[3]);
-        opt.p = atof(argv[4]);
+        opt.prefix = argv[2];
+        opt.count = atoi(argv[3]);
+        opt.isequal = atoi(argv[4]);
+        opt.p = atof(argv[5]);
         benchmarkrand();
     } else if (argvequal("seq", argv[1])) {
-        opt.count = atoi(argv[2]);
-        opt.p = atof(argv[3]);
+        opt.prefix = argv[2];
+        opt.count = atoi(argv[3]);
+        opt.p = atof(argv[4]);
         benchmarkseq();
     } else {
         usage();

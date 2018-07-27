@@ -1,6 +1,6 @@
 INCLUDE_DIRECTORIES (../include/)
-ADD_LIBRARY (sl_print sl_print.c)
 ADD_LIBRARY (ssl_print ssl_print.c)
+ADD_LIBRARY (sl_print sl_print.c ssl_print.c)
 ADD_LIBRARY (list list.c)
 ADD_LIBRARY (util util.c)
 ADD_LIBRARY (skiplist list.c skiplist.c std_skiplist.c)

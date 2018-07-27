@@ -88,6 +88,7 @@ typedef struct skiplist_s {
     char* dataname;                      // 映射的数据文件名
     struct skipsplit_s* split;           // 分裂跳表
     int state;                           // 跳表状态: SKIPLIST_STATE_XXXX
+    pthread_t split_id;
 } skiplist_t;
 
 typedef struct skipsplit_s {

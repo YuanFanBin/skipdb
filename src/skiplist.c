@@ -161,12 +161,12 @@ static void* run_skipsplit(void* arg) {
     }
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
     sl_unlock(sl, _offsets, 0);
+    pthread_exit((void *)0);
     return NULL;
 }
 
 static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
     int err;
-    pthread_t tid;
     status_t _status = { .ok = 1 };
 
     _status = ssl_open(redolog_name, sl->meta->p, &sl->split->redolog);
@@ -185,7 +185,7 @@ static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
         return _status;
     }
     sl->split->right->state = SKIPLIST_STATE_SPLITER;
-    if ((err = pthread_create(&tid, NULL, run_skipsplit, sl)) != 0) {
+    if ((err = pthread_create(&sl->split_id, NULL, run_skipsplit, sl)) != 0) {
         sl_destroy(sl->split->left);
         sl_destroy(sl->split->right);
         return statusnotok2(_status, "pthread_create(%d): %s", errno, strerror(errno));
@@ -197,16 +197,17 @@ static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
 static status_t loadredolog(skiplist_t* sl) {
     status_t _status = { .ok = 1 };
 
-    sl->split = (skipsplit_t*)malloc(sizeof(skipsplit_t));
-    if (sl->split == NULL) {
-        return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
-    }
     int n = strlen(sl->prefix) + sizeof(REDOLOG_SUFFIX) + 1;
     char* redolog_name = (char*)malloc(sizeof(char) * n);
     snprintf(redolog_name, n, "%s%s", sl->prefix, REDOLOG_SUFFIX);
     if (access(redolog_name, F_OK) != 0) {
         free(redolog_name);
         return _status;
+    }
+    sl->split = (skipsplit_t*)malloc(sizeof(skipsplit_t));
+    if (sl->split == NULL) {
+        free(redolog_name);
+        return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
     }
     _status = _skipsplit(sl, redolog_name);
     free(redolog_name);
@@ -215,6 +216,7 @@ static status_t loadredolog(skiplist_t* sl) {
             ssl_close(sl->split->redolog);
             sl->split->redolog = NULL;
         }
+        free(sl->split);
         return _status;
     }
     return _status;
