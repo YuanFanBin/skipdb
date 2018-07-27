@@ -14,7 +14,6 @@ typedef struct _options {
     char     prefix[128];
     int      isequal;
     int      issrand;
-    uint64_t maxcap;
 } _options;
 
 _options opt = {
@@ -23,7 +22,6 @@ _options opt = {
     .prefix   = "test",            // 测试文件名
     .isequal  = 0,                 // 是否等长随机key
     .issrand  = 0,                 // 是否设置随机种子
-    .maxcap   = 128 * 1024 * 1024, // 最大可扩容至
 };
 
 void test_skip() {

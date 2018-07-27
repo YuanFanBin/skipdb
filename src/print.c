@@ -1,4 +1,7 @@
 #include "print.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static void printmetanode(FILE* stream, metanode_t* mnode, uint64_t pos) {
     if (mnode == NULL) {
@@ -58,9 +61,9 @@ void sl_print(skiplist_t* sl, FILE* stream, int isprintnode) {
         ++lvlcnt[next->level];
         curr = next;
     }
-    curr = METANODEHEAD(sl);
 
     // skiplist
+    curr = METANODEHEAD(sl);
     fprintf(stream, "\033[31m[ skiplist ]\033[0m\n");
     fprintf(stream, "metaname = %s, dataname = %s\n",
             sl->metaname,
@@ -97,7 +100,7 @@ void sl_print(skiplist_t* sl, FILE* stream, int isprintnode) {
             sl->data->mapsize, sl->data->mapsize / 1024.0 / 1024.0,
             sl->data->mapcap, sl->data->mapcap / 1024.0 / 1024.0);
 
-    // skiplist->metafree
+    // skiplist->datafree
     fprintf(stream, "\033[31m[ skiplist->datafree ]\033[0m\n");
     if (sl->datafree != NULL) {
         listnode_t* lnode = sl->datafree->head;
