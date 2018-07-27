@@ -30,6 +30,10 @@
 
 // 整理之后获得的空闲/整理所需的代价
 
+pthread_mutex_t run_interval_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t run_interval_cond = PTHREAD_COND_INITIALIZER;
+bool run_defrag = true;
+
 void tidy_cost(skiplist_t *sl, uint64_t *income, double *cost) {
     listnode_t *cur = NULL;
     uint64_t sum = 0;
@@ -277,6 +281,7 @@ void move_data(skiplist_t *sl, data_block_t *ebs, uint64_t ebs_size, uint64_t da
 
 void *defrag_start(void *arg) {
     skipdb_t *db = (skipdb_t *) arg;
+    timespec_t ts_interval = {db->defrag_option->check_interval, 0};
 
     while (true) {
         if (db->close) {
@@ -287,7 +292,12 @@ void *defrag_start(void *arg) {
         check_db(db, &need_tidy);
 
         if (need_tidy == NULL) {
-            sleep(db->defrag_option->check_interval);
+            pthread_mutex_lock(&run_interval_mutex);
+            while (!run_defrag) {
+                pthread_cond_timedwait(&run_interval_cond, &run_interval_mutex, &ts_interval);
+            }
+            run_defrag = false;
+            pthread_mutex_unlock(&run_interval_mutex);
             continue;
         }
 
@@ -320,4 +330,12 @@ void main() {
 
     pthread_t p;
     pthread_create(&p, NULL, defrag_start, db);
+}
+
+void notify_defrag() {
+    pthread_mutex_lock(&run_interval_mutex);
+    run_defrag = true;
+    pthread_mutex_unlock(&run_interval_mutex);
+
+    pthread_cond_signal(&run_interval_cond);
 }
