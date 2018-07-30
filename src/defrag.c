@@ -2,9 +2,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
-#include <skiplist.h>
-#include <skipdb.h>
-#include <defrag.h>
 #include <stdbool.h>
 
 #include "defrag.h"
@@ -109,10 +106,7 @@ static int compar(const void *p1, const void *p2) {
     return (int) (*((uint64_t *) p1) - *((uint64_t *) p2));
 }
 
-typedef struct {
-    uint64_t offset;
-    uint64_t size;
-} data_block_t;
+
 
 void move_data(skiplist_t *sl, data_block_t *ebs, uint64_t ebs_size, uint64_t data_size, bool outer_lock);
 
@@ -208,26 +202,36 @@ void gen_ebs(skiplist_t *sl, data_block_t **ebs, uint64_t *eb_size, uint64_t *em
     }
 
     // 获取返回数据
-    data_block_t *empty_blocks = malloc(freelist_size * sizeof(data_block_t));
-    uint64_t ebs_i = 0;
-    uint64_t ebs_size = 0;
-    for (uint64_t j = 0; j < freelist_size; ++j) {
-        ebs_size += freelist_map_datasize[j];
-
-        if (ebs_i == 0 || (empty_blocks[ebs_i - 1].offset + empty_blocks[ebs_i - 1].size != freelist[j])) {
-            empty_blocks[ebs_i].offset = freelist[j];
-            empty_blocks[ebs_i].size = freelist_map_datasize[j];
-            ebs_i++;
-        } else {
-            empty_blocks[ebs_i - 1].size += freelist_map_datasize[j];
-        }
-    }
+    merge_empty_block(freelist, freelist_map_datasize, freelist_size,
+                      ebs, eb_size, empty_size
+    );
     free(freelist);
     free(freelist_map_datasize);
+}
 
-    *ebs = empty_blocks;
-    *eb_size = ebs_i;
-    *empty_size = ebs_size;
+// need free
+void merge_empty_block(const uint64_t *offset_arr, const uint64_t *size_arr, uint64_t size,
+                       data_block_t **blocks, uint64_t *blocks_size, uint64_t *blocks_sum) {
+    data_block_t *empty_block = malloc(sizeof(data_block_t) * size);
+
+    uint64_t ix = 0;
+    uint64_t sum = 0;
+    for (int i = 0; i < size; ++i) {
+        sum += size_arr[i];
+
+        if (ix == 0 || (empty_block[ix - 1].offset + empty_block[ix - 1].size != offset_arr[i])) {
+            empty_block[ix].offset = offset_arr[i];
+            empty_block[ix].size = size_arr[i];
+
+            ++ix;
+        } else {
+            empty_block[ix - 1].size += size_arr[i];
+        }
+    }
+
+    *blocks = empty_block;
+    *blocks_size = ix;
+    *blocks_sum = sum;
 }
 
 // data_size = 20
@@ -325,12 +329,14 @@ void *defrag_start(void *arg) {
     }
 }
 
+/*
 void main() {
     skipdb_t *db = NULL;
 
     pthread_t p;
     pthread_create(&p, NULL, defrag_start, db);
 }
+ */
 
 void notify_defrag() {
     pthread_mutex_lock(&run_interval_mutex);

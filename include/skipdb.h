@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "status.h"
 #include "defrag.h"
+#include "skiplist.h"
 
 typedef struct {
     defrag_option_t *defrag_option;

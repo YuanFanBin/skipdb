@@ -1,6 +1,10 @@
 #ifndef SKIPDB_DEFRAG_H
 #define SKIPDB_DEFRAG_H
 
+typedef struct {
+    uint64_t offset;
+    uint64_t size;
+} data_block_t;
 
 typedef struct {
     // 小于 min_income 不会整理。避免，后面空洞，价值很大，频繁整理。
@@ -18,5 +22,9 @@ typedef struct {
 void *defrag_start(void *arg);
 
 void notify_defrag();
+
+// need free
+void merge_empty_block(const uint64_t *offset_arr, const uint64_t *size_arr, uint64_t size,
+                       data_block_t **blocks, uint64_t *blocks_size, uint64_t *blocks_sum);
 
 #endif //SKIPDB_DEFRAG_H
