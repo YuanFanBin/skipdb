@@ -8,6 +8,8 @@
 #define STATUS_SKIPDB_OPEN_FAILED 5
 #define STATUS_SKIPDB_BTREE_FAILED 6
 
+#define STATUS_SKIPLIST_KEY_NOTFOUND 100
+
 typedef struct {
     int code;
     char errmsg[ERRMSG_SIZE];

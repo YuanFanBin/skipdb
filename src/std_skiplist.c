@@ -1,4 +1,4 @@
-#include "../include/std_skiplist.h"
+#include "std_skiplist.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -6,28 +6,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-static void _createindex(sskiplist_t* ssl, void* mapped, uint64_t mapcap, float p) {
-    ssl->index = (sskipindex_t*)mapped;
-    ssl->index->mapcap = mapcap;
-    ssl->index->mapped = mapped;
-    ssl->index->mapsize = sizeof(sskipindex_t) + sizeof(sskipnode_t) + sizeof(uint64_t) * SSL_MAXLEVEL + 0;
-    ssl->index->tail = sizeof(sskipindex_t);
-    ssl->index->count = 0;
-    ssl->index->p = p;
-    sskipnode_t* head = (sskipnode_t*)(mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL);
-    head->key_len = 0;
-    head->flag = SSL_NODE_HEAD;
-    head->backward = 0;
-    head->value = 0;
-    head->level = 0;
-}
-
-static void _loadindex(sskiplist_t* ssl, void* mapped, uint64_t mapcap) {
-    ssl->index = (sskipindex_t*)mapped;
-    ssl->index->mapcap = mapcap;
-    ssl->index->mapped = mapped;
-}
 
 // TODO:
 status_t ssl_load(const char* filename, sskiplist_t** ssl) {
@@ -72,7 +50,7 @@ status_t ssl_load(const char* filename, sskiplist_t** ssl) {
     return _status;
 }
 
-status_t _ssl_load(sskiplist_t* ssl) {
+static status_t _ssl_load(sskiplist_t* ssl) {
     uint64_t mapcap = 0;
     void* mapped = NULL;
     status_t _status;
@@ -82,11 +60,13 @@ status_t _ssl_load(sskiplist_t* ssl) {
         munmap(mapped, mapcap);
         return _status;
     }
-    _loadindex(ssl, mapped, mapcap);
+    ssl->index = (sskipindex_t*)mapped;
+    ssl->index->mapcap = mapcap;
+    ssl->index->mapped = mapped;
     return _status;
 }
 
-status_t _ssl_create(sskiplist_t* ssl, float p) {
+static status_t _ssl_create(sskiplist_t* ssl, float p) {
     void* mapped = NULL;
     status_t _status;
 
@@ -95,7 +75,19 @@ status_t _ssl_create(sskiplist_t* ssl, float p) {
         munmap(mapped, SSL_DEFAULT_FILE_SIZE);
         return _status;
     }
-    _createindex(ssl, mapped, SSL_DEFAULT_FILE_SIZE, p);
+    ssl->index = (sskipindex_t*)mapped;
+    ssl->index->mapcap = SSL_DEFAULT_FILE_SIZE;
+    ssl->index->mapped = mapped;
+    ssl->index->mapsize = sizeof(sskipindex_t) + sizeof(sskipnode_t) + sizeof(uint64_t) * SSL_MAXLEVEL + 0;
+    ssl->index->tail = sizeof(sskipindex_t);
+    ssl->index->count = 0;
+    ssl->index->p = p;
+    sskipnode_t* head = (sskipnode_t*)(mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL);
+    head->key_len = 0;
+    head->flag = SSL_NODE_HEAD;
+    head->backward = 0;
+    head->value = 0;
+    head->level = 0;
     return _status;
 }
 

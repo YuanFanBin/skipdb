@@ -33,48 +33,6 @@ uint8_t random_level(int max_level, float p) {
     return (level < max_level) ? level : max_level;
 }
 
-// TODO: DELETE
-status_t fileopen(const char* filename, int* fd, uint64_t* size, size_t default_size) {
-    struct stat s;
-    status_t _status = { .code = 0 };
-
-    if (access(filename, F_OK) == 0) {
-        if ((*fd = open(filename, O_RDWR)) < 0) {
-            return statusfuncnotok(_status, errno, "open");
-        }
-        if ((fstat(*fd, &s)) == -1) {
-            close(*fd);
-            return statusfuncnotok(_status, errno, "fstat");
-        }
-        // TODO
-        *size = s.st_size;
-        return _status;
-    }
-    if ((*fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0600)) < 0) {
-        return statusfuncnotok(_status, errno, "open");
-    }
-    if (ftruncate(*fd, default_size) < 0) {
-        close(*fd);
-        return statusfuncnotok(_status, errno, "ftruncate");
-    }
-    *size = default_size;
-    return _status;
-}
-
-status_t filecreate(const char* filename, int* fd, uint64_t* size, size_t default_size) {
-    status_t _status = { .code = 0 };
-
-    if ((*fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0600)) < 0) {
-        return statusfuncnotok(_status, errno, "open");
-    }
-    if (ftruncate(*fd, default_size) < 0) {
-        close(*fd);
-        return statusfuncnotok(_status, errno, "ftruncate");
-    }
-    *size = default_size;
-    return _status;
-}
-
 status_t filemmap(int fd, uint64_t size, void** mapped) {
     status_t _status = { .code = 0 };
 

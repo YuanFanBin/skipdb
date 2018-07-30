@@ -1,5 +1,5 @@
-#include "sl_print.h"
-#include "ssl_print.h"
+#include "../include/sl_print.h"
+#include "../include/ssl_print.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,7 +123,9 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
 
     if (sl->split != NULL) {
         fprintf(stream, "%s\033[31m[[ skiplist->split->redolog ]]\033[0m\n", prefix);
-        ssl_print(sl->split->redolog, stream, "\t", isprintnode);
+        if (sl->split->redolog != NULL) {
+            ssl_print(sl->split->redolog, stream, "\t", isprintnode);
+        }
         fprintf(stream, "%s\033[31m[[ skiplist->split->left ]]\033[0m\n", prefix);
         sl_print(sl->split->left, stream, "\t", isprintnode);
         fprintf(stream, "%s\033[31m[[ skiplist->split->right ]]\033[0m\n", prefix);
