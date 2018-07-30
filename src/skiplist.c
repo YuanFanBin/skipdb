@@ -794,6 +794,11 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     if (sl == NULL) {
         return _status;
     }
+    if (sl->split != NULL) {
+        if ((err = pthread_join(sl->split_id, NULL)) != 0) {
+            return statusnotok2(_status, "pthread_join(%d): %s", err, strerror(err));
+        }
+    }
     sl_sync(sl);
     if (sl->meta != NULL && sl->meta->mapped != NULL) {
         if (munmap(sl->meta->mapped, sl->meta->mapsize) == -1) {
