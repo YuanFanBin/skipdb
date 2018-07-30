@@ -60,6 +60,20 @@ status_t fileopen(const char* filename, int* fd, uint64_t* size, size_t default_
     return _status;
 }
 
+status_t filecreate(const char* filename, int* fd, uint64_t* size, size_t default_size) {
+    status_t _status = { .ok = 1 };
+
+    if ((*fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0600)) < 0) {
+        return statusnotok2(_status, "open(%d): %s", errno, strerror(errno));
+    }
+    if (ftruncate(*fd, default_size) < 0) {
+        close(*fd);
+        return statusnotok2(_status, "ftruncate(%d): %s", errno, strerror(errno));
+    }
+    *size = default_size;
+    return _status;
+}
+
 status_t filemmap(int fd, uint64_t size, void** mapped) {
     status_t _status = { .ok = 1 };
 
