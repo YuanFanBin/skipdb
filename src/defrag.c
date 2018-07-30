@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <skipdb.h>
 
 #include "defrag.h"
 #include "skiplist.h"
@@ -60,6 +61,8 @@ void tidy_cost(skiplist_t *sl, uint64_t *income, double *cost) {
 }
 
 void check_db(skipdb_t *db, skiplist_t **skiplist_need_tidy) {
+    defrag_option_t option = skipdb_get_option(db)->defrag_option;
+
     skiplist_iter_t *iter = skiplist_iter_new(db);
 
     skiplist_t *need_tidy = NULL;
@@ -84,11 +87,11 @@ void check_db(skipdb_t *db, skiplist_t **skiplist_need_tidy) {
                 need_tidy = sl;
                 break;
             }
-            if (income > db->defrag_option->max_income) { // 空洞数量过大
+            if (income > option.max_income) { // 空洞数量过大
                 need_tidy = sl;
                 break;
             }
-            if (income < db->defrag_option->min_income || cost < db->defrag_option->min_cost) {
+            if (income < option.min_income || cost < option.min_cost) {
                 continue;
             }
             if (cost > max_cost) {
@@ -105,7 +108,6 @@ void check_db(skipdb_t *db, skiplist_t **skiplist_need_tidy) {
 static int compar(const void *p1, const void *p2) {
     return (int) (*((uint64_t *) p1) - *((uint64_t *) p2));
 }
-
 
 
 void move_data(skiplist_t *sl, data_block_t *ebs, uint64_t ebs_size, uint64_t data_size, bool outer_lock);
@@ -285,7 +287,8 @@ void move_data(skiplist_t *sl, data_block_t *ebs, uint64_t ebs_size, uint64_t da
 
 void *defrag_start(void *arg) {
     skipdb_t *db = (skipdb_t *) arg;
-    timespec_t ts_interval = {db->defrag_option->check_interval, 0};
+    defrag_option_t option = skipdb_get_option(db)->defrag_option;
+    timespec_t ts_interval = {option.check_interval, 0};
 
     while (true) {
         if (db->close) {
