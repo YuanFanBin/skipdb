@@ -16,7 +16,7 @@ static void createmeta(skiplist_t* sl, void* mapped, uint64_t mapcap, float p) {
     for (int i = 0; i < SKIPLIST_MAXLEVEL; ++i) {
         sl->metafree[i] = NULL;
     }
-    metanode_t* head = (metanode_t*)(mapped + sizeof(skipmeta_t) + 1);
+    metanode_t* head = (metanode_t*)(mapped + sizeof(skipmeta_t));
     head->flag = METANODE_HEAD;
     head->offset = 0;
     head->value = 0;
@@ -29,7 +29,7 @@ static void loadmeta(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     sl->meta->mapcap = mapcap;
     sl->meta->mapped = mapped;
 
-    metanode_t* curr = (metanode_t*)(mapped + sizeof(skipmeta_t) + sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL + 1);
+    metanode_t* curr = (metanode_t*)(mapped + sizeof(skipmeta_t) + sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL);
     while (curr->flag | METANODE_NONE) {
         if ((curr->flag | METANODE_DELETED) == METANODE_DELETED) {
             if (sl->metafree[curr->level] == NULL) {
@@ -73,7 +73,7 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
         curr = next;
     }
     qsort(offsets, sl->meta->count, sizeof(uint64_t*), cmpu64);
-    datanode_t* dnode = (datanode_t*)(sl->data->mapped + sizeof(skipdata_t) + 1);
+    datanode_t* dnode = (datanode_t*)(sl->data->mapped + sizeof(skipdata_t));
     for (int i = 0; i < sl->meta->count; ++i) {
         while (offsets[i] != DATANODEPOSITION(sl, dnode)) {
             if (sl->datafree == NULL) {
@@ -517,11 +517,11 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         mnode = (metanode_t*)(sl->meta->mapped + reuse->value);
         list_remove(sl->metafree[level], reuse);
     } else {
-        mnode = (metanode_t*)(sl->meta->mapped + sl->meta->mapsize + 1);
+        mnode = (metanode_t*)(sl->meta->mapped + sl->meta->mapsize);
     }
     mnode->level = level;
     mnode->flag = METANODE_USED;
-    mnode->offset = sl->data->mapsize + 1;
+    mnode->offset = sl->data->mapsize;
     mnode->value = value;
     mnode->backward = METANODEPOSITION(sl, curr);
     for (int i = 0; i < mnode->level; ++i) {
@@ -535,7 +535,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
             return _status;
         }
     }
-    datanode_t* dnode = sl_get_datanode(sl, sl->data->mapsize + 1);
+    datanode_t* dnode = sl_get_datanode(sl, sl->data->mapsize);
     dnode->offset = METANODEPOSITION(sl, mnode);
     dnode->size = key_len;
     memcpy((void*)dnode->data, key, key_len);

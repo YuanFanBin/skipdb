@@ -22,7 +22,7 @@
 #define METANODE_USED       0x0001 // 跳表节点已被使用
 #define METANODE_NONE       0x0000 // 空节点(未被使用过)
 
-// 元数据文件最大大小（不自动扩容）
+// 元数据文件最大大小（当作为分裂中的left, right跳表时自动扩容，否则不自动扩容）
 // 最大可容纳：4 * 1024 * 1024 / (sizeof(metanode) + sizeof(uint64_t) = 104857个key
 // 最小可容纳：4 * 1024 * 1024 / (sizeof(metanode) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL) = 7710个key
 #define DEFAULT_METAFILE_SIZE   (uint64_t)(4194304) // 默认文件大小(4M)
@@ -110,7 +110,7 @@ status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n);
 status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size);
 datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset);
 
-#define METANODEHEAD(sl) ((metanode_t*)((sl)->meta->mapped + sizeof(skipmeta_t) + 1))
+#define METANODEHEAD(sl) ((metanode_t*)((sl)->meta->mapped + sizeof(skipmeta_t)))
 #define METANODE(sl, offset) ((offset) == 0 ? NULL : ((metanode_t*)((sl)->meta->mapped + (offset))))
 #define METANODESIZE(mnode) (sizeof(metanode_t) + sizeof(uint64_t) * (mnode)->level)
 #define METANODEPOSITION(sl, node) ((uint64_t)((void*)(node) - (sl)->meta->mapped))

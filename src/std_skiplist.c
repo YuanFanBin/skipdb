@@ -15,7 +15,7 @@ static void createindex(sskiplist_t* ssl, void* mapped, uint64_t mapcap, float p
     ssl->index->tail = sizeof(sskipindex_t);
     ssl->index->count = 0;
     ssl->index->p = p;
-    sskipnode_t* head = (sskipnode_t*)(mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL + 1);
+    sskipnode_t* head = (sskipnode_t*)(mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL);
     head->key_len = 0;
     head->flag = SSL_NODE_HEAD;
     head->backward = 0;
@@ -185,7 +185,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
     }
 
     uint16_t level = random_level(SSL_MAXLEVEL, ssl->index->p);
-    sskipnode_t* node = (sskipnode_t*)(ssl->index->mapped + ssl->index->mapsize + sizeof(uint64_t) * level + 1);
+    sskipnode_t* node = (sskipnode_t*)(ssl->index->mapped + ssl->index->mapsize + sizeof(uint64_t) * level);
     node->key_len = (uint16_t)key_len;
     node->level = level;
     node->flag = flag;

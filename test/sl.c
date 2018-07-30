@@ -212,8 +212,7 @@ void benchmarkrand() {
 
     // FREE
     freekeys(opt.count);
-    // sl_destroy(sl);
-    sl_close(sl);
+    sl_destroy(sl);
 }
 
 void benchmarkseq() {

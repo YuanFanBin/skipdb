@@ -23,18 +23,18 @@ static void printmetanode(FILE* stream, const char* prefix, metanode_t* mnode, u
     fprintf(stream, "], ");
 }
 
-static void printdatanode(FILE* stream, const char* prefix, datanode_t* dnode) {
+static void printdatanode(FILE* stream, datanode_t* dnode) {
     char* buff = (char*)malloc(sizeof(char) * dnode->size + 1);
     memcpy(buff, dnode->data, dnode->size);
     buff[dnode->size] = '\0';
-    fprintf(stream, "%s%s\n", prefix, buff);
+    fprintf(stream, "%s\n", buff);
     free(buff);
 }
 
 static void printnode(skiplist_t* sl, FILE* stream, const char* prefix, metanode_t* mnode, uint64_t pos) {
     printmetanode(stream, prefix, mnode, pos);
     datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
-    printdatanode(stream, prefix, dnode);
+    printdatanode(stream, dnode);
 }
 
 void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode) {
@@ -116,7 +116,7 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
                     lnode->value,
                     dnode->offset,
                     dnode->size);
-            printdatanode(stream, prefix, dnode);
+            printdatanode(stream, dnode);
             lnode = lnode->next;
         }
     }
