@@ -90,14 +90,14 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     free(offsets);
 }
 
-status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
+static status_t sl_create(const char* prefix, float p, skiplist_t** sl) {
     int datafd;
     int err;
     int metafd;
     int n;
     uint64_t datacap = 0;
     uint64_t metacap = 0;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     if (prefix == NULL) {
         return statusnotok0(_status, "prefix is NULL");
@@ -106,7 +106,7 @@ status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
     (*sl)->split = NULL;
     (*sl)->state = SKIPLIST_STATE_NORMAL;
     if ((err = pthread_rwlock_init(&(*sl)->rwlock, NULL)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_init(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_init");
     }
     // open meta/data file
     size_t prefix_len = strlen(prefix);
@@ -120,12 +120,12 @@ status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
     snprintf((*sl)->dataname, n, "%s%s", prefix, DATA_SUFFIX);
 
     status_t s1 = filecreate((*sl)->metaname, &metafd, &metacap, DEFAULT_METAFILE_SIZE);
-    if (!s1.ok) {
+    if (s1.code != 0) {
         sl_close(*sl);
         return s1;
     }
     status_t s2 = filecreate((*sl)->dataname, &datafd, &datacap, DEFAULT_DATAFILE_SIZE);
-    if (!s2.ok) {
+    if (s2.code != 0) {
         close(metafd);
         sl_close(*sl);
         return s2;
@@ -134,7 +134,7 @@ status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
     void* metamapped = NULL;
     s1 = filemmap(metafd, metacap, &metamapped);
     close(metafd);
-    if (!s1.ok) {
+    if (s1.code != 0) {
         close(datafd);
         sl_close(*sl);
         return s1;
@@ -142,7 +142,7 @@ status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
     void* datamapped = NULL;
     s2 = filemmap(datafd, datacap, &datamapped);
     close(datafd);
-    if (!s2.ok) {
+    if (s2.code != 0) {
         munmap(metamapped, metacap);
         sl_close(*sl);
         return s2;
@@ -155,7 +155,7 @@ status_t _sl_create(const char* prefix, float p, skiplist_t** sl) {
 
 static void* run_skipsplit(void* arg) {
     uint64_t _offsets[] = {};
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     skiplist_t* sl = (skiplist_t*)arg;
     int lcount = sl->meta->count / 2;
     int rcount = sl->meta->count - lcount;
@@ -186,6 +186,7 @@ static void* run_skipsplit(void* arg) {
         // NOTE: impossible
         metanode_t* rmnode = METANODE(sl->split->right, sl->split->right->meta->tail);
         if (rmnode == NULL) {
+            sl_unlock(sl, _offsets, 0);
             return NULL;
         }
         sskipnode_t* ssnode = SSL_NODEHEAD(sl->split->redolog);
@@ -201,6 +202,7 @@ static void* run_skipsplit(void* arg) {
             }
             ssnode = next;
         }
+        sl_unlock(sl, _offsets, 0);
         return NULL;
     }
     datanode_t* ldnode = sl_get_datanode(sl->split->left, lmnode->offset);
@@ -225,28 +227,55 @@ static void* run_skipsplit(void* arg) {
         }
         ssnode = next;
     }
+    ssl_destroy(sl->split->redolog);
+    sl->split->redolog = NULL;
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
     sl_unlock(sl, _offsets, 0);
     pthread_exit((void *)0);
     return NULL;
 }
 
-static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
+static status_t _skipsplit(skiplist_t* sl) {
     int err;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
+    char* redolog_name = NULL;
+    char* left_name = NULL;
+    char* right_name = NULL;
+
+    {
+        int n;
+        int prefix_n = strlen(sl->prefix);
+        // redolog name
+        n = prefix_n + sizeof(SPLIT_REDOLOG_SUFFIX) + 1;
+        redolog_name = (char*)malloc(sizeof(char) * n);
+        snprintf(redolog_name, n, "%s%s", sl->prefix, SPLIT_REDOLOG_SUFFIX);
+        // left name
+        n = prefix_n + sizeof(SPLIT_LEFT_SUFFIX) + 1;
+        left_name = (char*)malloc(sizeof(char) * n);
+        snprintf(left_name, n, "%s%s", sl->prefix, SPLIT_LEFT_SUFFIX);
+        // right name
+        n = prefix_n + sizeof(SPLIT_RIGHT_SUFFIX) + 1;
+        right_name = (char*)malloc(sizeof(char) * n);
+        snprintf(right_name, n, "%s%s", sl->prefix, SPLIT_RIGHT_SUFFIX);
+    }
 
     _status = ssl_open(redolog_name, sl->meta->p, &sl->split->redolog);
-    if (!_status.ok) {
+    free(redolog_name);
+    if (_status.code != 0) {
+        free(left_name);
+        free(right_name);
         return _status;
     }
-    // TODO: get_file_prefix
-    _status = _sl_create("left", sl->meta->p, &sl->split->left);
-    if (!_status.ok) {
+    _status = sl_create(left_name, sl->meta->p, &sl->split->left);
+    free(left_name);
+    if (_status.code != 0) {
+        free(right_name);
         return _status;
     }
     sl->split->left->state = SKIPLIST_STATE_SPLITER;
-    _status = _sl_create("right", sl->meta->p, &sl->split->right);
-    if (!_status.ok) {
+    _status = sl_create(right_name, sl->meta->p, &sl->split->right);
+    free(right_name);
+    if (_status.code != 0) {
         sl_destroy(sl->split->left);
         return _status;
     }
@@ -254,7 +283,7 @@ static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
     if ((err = pthread_create(&sl->split_id, NULL, run_skipsplit, sl)) != 0) {
         sl_destroy(sl->split->left);
         sl_destroy(sl->split->right);
-        return statusnotok2(_status, "pthread_create(%d): %s", errno, strerror(errno));
+        return statusfuncnotok(_status, err, "pthread_create");
     }
     sl->state = SKIPLIST_STATE_SPLITED;
     return _status;
@@ -262,11 +291,11 @@ static status_t _skipsplit(skiplist_t* sl, const char* redolog_name) {
 
 static status_t loadredolog(skiplist_t* sl) {
     int err;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
-    int n = strlen(sl->prefix) + sizeof(REDOLOG_SUFFIX) + 1;
+    int n = strlen(sl->prefix) + sizeof(SPLIT_REDOLOG_SUFFIX) + 1;
     char* redolog_name = (char*)malloc(sizeof(char) * n);
-    snprintf(redolog_name, n, "%s%s", sl->prefix, REDOLOG_SUFFIX);
+    snprintf(redolog_name, n, "%s%s", sl->prefix, SPLIT_REDOLOG_SUFFIX);
     if (access(redolog_name, F_OK) != 0) {
         free(redolog_name);
         return _status;
@@ -274,11 +303,11 @@ static status_t loadredolog(skiplist_t* sl) {
     sl->split = (skipsplit_t*)malloc(sizeof(skipsplit_t));
     if (sl->split == NULL) {
         free(redolog_name);
-        return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
+        return statusfuncnotok(_status, errno, "malloc");
     }
-    _status = _skipsplit(sl, redolog_name);
+    _status = _skipsplit(sl);
     free(redolog_name);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         if (sl->split->redolog != NULL) {
             ssl_close(sl->split->redolog);
             sl->split->redolog = NULL;
@@ -287,19 +316,66 @@ static status_t loadredolog(skiplist_t* sl) {
         return _status;
     }
     if ((err = pthread_join(sl->split_id, NULL)) != 0) {
-        return statusnotok2(_status, "pthread_join(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_join");
+    }
+    return _status;
+}
+
+status_t _sl_load(skiplist_t* sl) {
+    status_t _status = { .code = 0 };
+    uint64_t mapcap = 0;
+    void* mapped = NULL;
+
+    // load meta
+    {
+        _status = ommap(sl->metaname, &mapcap, &mapped);
+        if (_status.code != 0) {
+            munmap(mapped, mapcap);
+            return _status;
+        }
+        loadmeta(sl, mapped, mapcap);
+    }
+    // load data
+    {
+        _status = ommap(sl->dataname, &mapcap, &mapped);
+        if (_status.code != 0) {
+            munmap(mapped, mapcap);
+            return _status;
+        }
+        loaddata(sl, mapped, mapcap);
+    }
+    return _status;
+}
+
+status_t _sl_create(skiplist_t* sl, float p) {
+    status_t _status = { .code = 0 };
+    void* mapped = NULL;
+
+    // create meta
+    {
+        _status = cmmap(sl->metaname, DEFAULT_METAFILE_SIZE, &mapped);
+        if (_status.code != 0) {
+            munmap(mapped, DEFAULT_METAFILE_SIZE);
+            return _status;
+        }
+        createmeta(sl, mapped, DEFAULT_METAFILE_SIZE, p);
+    }
+    // create data
+    {
+        _status = cmmap(sl->dataname, DEFAULT_DATAFILE_SIZE, &mapped);
+        if (_status.code != 0) {
+            munmap(mapped, DEFAULT_DATAFILE_SIZE);
+            return _status;
+        }
+        createdata(sl, mapped, DEFAULT_DATAFILE_SIZE);
     }
     return _status;
 }
 
 status_t sl_open(const char* prefix, float p, skiplist_t** sl) {
-    int datafd;
-    int err;
-    int metafd;
     int n;
-    uint64_t datacap = 0;
-    uint64_t metacap = 0;
-    status_t _status = { .ok = 1 };
+    int err;
+    status_t _status = { .code = 0 };
 
     if (prefix == NULL) {
         return statusnotok0(_status, "prefix is NULL");
@@ -308,7 +384,7 @@ status_t sl_open(const char* prefix, float p, skiplist_t** sl) {
     (*sl)->split = NULL;
     (*sl)->state = SKIPLIST_STATE_NORMAL;
     if ((err = pthread_rwlock_init(&(*sl)->rwlock, NULL)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_init(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_init");
     }
     // open meta/data file
     size_t prefix_len = strlen(prefix);
@@ -321,63 +397,22 @@ status_t sl_open(const char* prefix, float p, skiplist_t** sl) {
     (*sl)->dataname = (char*)malloc(sizeof(char) * n);
     snprintf((*sl)->dataname, n, "%s%s", prefix, DATA_SUFFIX);
 
-    status_t s1 = fileopen((*sl)->metaname, &metafd, &metacap, DEFAULT_METAFILE_SIZE);
-    if (!s1.ok) {
+    int ret1 = access((*sl)->metaname, F_OK);
+    int ret2 = access((*sl)->dataname, F_OK);
+    if (ret1 == 0 && ret2 == 0) {
+        _status = _sl_load(*sl);
+    } else if (ret1 != 0 && ret2 != 0) {
+        _status = _sl_create(*sl, p);
+    } else {
         sl_close(*sl);
-        return s1;
+        return statusnotok2(_status, "%s or %s not eixst", (*sl)->metaname, (*sl)->dataname);
     }
-    status_t s2 = fileopen((*sl)->dataname, &datafd, &datacap, DEFAULT_DATAFILE_SIZE);
-    if (!s2.ok) {
-        close(metafd);
-        sl_close(*sl);
-        return s2;
-    }
-    if (s1.type != s2.type) {
-        _status.ok = 0;
-        close(metafd);
-        close(datafd);
-        if (s1.type == STATUS_SKIPLIST_LOAD) {
-            remove((*sl)->dataname);
-            snprintf(_status.errmsg, ERRMSG_SIZE, "%s not found", (*sl)->dataname);
-        } else {
-            remove((*sl)->metaname);
-            snprintf(_status.errmsg, ERRMSG_SIZE, "%s not found", (*sl)->metaname);
-        }
+    if (_status.code != 0) {
         sl_close(*sl);
         return _status;
     }
-    int isload = 0;
-    if (s1.type == STATUS_SKIPLIST_LOAD) {
-        isload = 1;
-    }
-
-    // mmap meta/data file
-    void* metamapped = NULL;
-    s1 = filemmap(metafd, metacap, &metamapped);
-    close(metafd);
-    if (!s1.ok) {
-        close(datafd);
-        sl_close(*sl);
-        return s1;
-    }
-    void* datamapped = NULL;
-    s2 = filemmap(datafd, datacap, &datamapped);
-    close(datafd);
-    if (!s2.ok) {
-        munmap(metamapped, metacap);
-        sl_close(*sl);
-        return s2;
-    }
-
-    if (isload) {
-        loadmeta(*sl, metamapped, metacap);
-        loaddata(*sl, datamapped, datacap);
-    } else {
-        createmeta(*sl, metamapped, metacap, p);
-        createdata(*sl, datamapped, datacap);
-    }
     _status = loadredolog(*sl);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         sl_close(*sl);
         return _status;
     }
@@ -385,36 +420,36 @@ status_t sl_open(const char* prefix, float p, skiplist_t** sl) {
 }
 
 status_t sl_sync(skiplist_t* sl) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     if (sl == NULL) {
         return _status;
     }
     if (sl->meta != NULL && sl->meta->mapped != NULL) {
         if (msync(sl->meta->mapped, sl->meta->mapcap, MS_SYNC) != 0) {
-            return statusnotok2(_status, "msync(%d): %s", errno, strerror(errno));
+            return statusfuncnotok(_status, errno, "msync");
         }
     }
     if (sl->meta != NULL && sl->data->mapped != NULL) {
         if (msync(sl->data->mapped, sl->data->mapcap, MS_SYNC) != 0) {
-            return statusnotok2(_status, "msync(%d): %s", errno, strerror(errno));
+            return statusfuncnotok(_status, errno, "msync");
         }
     }
     if (sl->split != NULL) {
         if (sl->split->redolog != NULL) {
             _status = ssl_sync(sl->split->redolog);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->left != NULL) {
             _status = sl_sync(sl->split->left);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->left != NULL) {
             _status = sl_sync(sl->split->left);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }
@@ -427,10 +462,10 @@ static status_t expandmetafile(skiplist_t* sl) {
     int fd = -1;
     uint64_t newcap = 0;
     void* newmapped = NULL;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     if ((fd = open(sl->metaname, O_RDWR)) < 0) {
-        return statusnotok2(_status, "open(%d): %s", errno, strerror(errno));
+        return statusfuncnotok(_status, errno, "open");
     }
     if (sl->meta->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
         newcap = sl->meta->mapcap * 2;
@@ -439,7 +474,7 @@ static status_t expandmetafile(skiplist_t* sl) {
     }
     _status = filemremap(fd, sl->meta->mapped, sl->meta->mapcap, newcap, &newmapped);
     close(fd);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     loadmeta(sl, newmapped, newcap);
@@ -451,10 +486,10 @@ static status_t expanddatafile(skiplist_t* sl) {
     int fd = -1;
     uint64_t newcap = 0;
     void* newmapped = NULL;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     if ((fd = open(sl->dataname, O_RDWR)) < 0) {
-        return statusnotok2(_status, "open(%d): %s", errno, strerror(errno));
+        return statusfuncnotok(_status, errno, "open");
     }
     if (sl->data->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
         newcap = sl->data->mapcap * 2;
@@ -463,7 +498,7 @@ static status_t expanddatafile(skiplist_t* sl) {
     }
     _status = filemremap(fd, sl->data->mapped, sl->data->mapcap, newcap, &newmapped);
     close(fd);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     // TODO: loaddata ???
@@ -474,18 +509,14 @@ static status_t expanddatafile(skiplist_t* sl) {
 }
 
 static status_t skipsplit_and_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     sl->split = (skipsplit_t*)malloc(sizeof(skipsplit_t));
     if (sl->split == NULL) {
-        return statusnotok2(_status, "malloc(%d): %s", errno, strerror(errno));
+        return statusfuncnotok(_status, errno, "malloc");
     }
-    int n = strlen(sl->prefix) + sizeof(REDOLOG_SUFFIX) + 1;
-    char* redolog_name = (char*)malloc(sizeof(char) * n);
-    snprintf(redolog_name, n, "%s%s", sl->prefix, REDOLOG_SUFFIX);
-    _status = _skipsplit(sl, redolog_name);
-    free(redolog_name);
-    if (!_status.ok) {
+    _status = _skipsplit(sl);
+    if (_status.code != 0) {
         if (sl->split->redolog != NULL) {
             ssl_destroy(sl->split->redolog);
             sl->split->redolog = NULL;
@@ -493,14 +524,14 @@ static status_t skipsplit_and_put(skiplist_t* sl, const void* key, size_t key_le
         return _status;
     }
     _status = ssl_put(sl->split->redolog, key, key_len, value);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     return _status;
 }
 
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     metanode_t* head = NULL;
     metanode_t* curr = NULL;
     metanode_t* update[SKIPLIST_MAXLEVEL] = { NULL };
@@ -513,7 +544,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         return statusnotok2(_status, "key_len(%ld) over MAX_KEY_LEN(%d)", key_len, MAX_KEY_LEN);
     }
     _status = sl_wrlock(sl, _offsets, 0);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
@@ -549,7 +580,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         }
         if (sl->state == SKIPLIST_STATE_SPLITER) {
             _status = expandmetafile(sl);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 sl_unlock(sl, _offsets, 0);
                 return _status;
             }
@@ -600,7 +631,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
 
     if (sl->data->mapcap - sl->data->mapsize < sizeof(datanode_t) + MAX_KEY_LEN) {
         _status = expanddatafile(sl);
-        if (!_status.ok) {
+        if (_status.code != 0) {
             sl_unlock(sl, _offsets, 0);
             return _status;
         }
@@ -634,14 +665,14 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
 }
 
 status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     uint64_t _offsets[] = {};
 
     if (sl == NULL || key == NULL) {
         return statusnotok0(_status, "skiplist or key is NULL");
     }
     _status = sl_rdlock(sl, _offsets, 0);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
@@ -666,8 +697,17 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
-        _status = ssl_get(sl->split->redolog, key, key_len, value);
-        if (_status.ok || _status.type == SSL_NODE_DELETED) {
+        sskipnode_t* snode = NULL;
+        _status = ssl_getnode(sl->split->redolog, key, key_len, &snode);
+        if (_status.code != 0) {
+            sl_unlock(sl, _offsets, 0);
+            return _status;
+        }
+        if (snode != NULL) {
+            if ((snode->flag & SSL_NODE_DELETED) == SSL_NODE_DELETED) {
+                return sl_unlock(sl, _offsets, 0);
+            }
+            *value = snode->value;
             return sl_unlock(sl, _offsets, 0);
         }
     }
@@ -695,7 +735,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
 }
 
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     uint64_t _offsets[] = {};
     metanode_t* mnode = NULL;
     metanode_t* update[SKIPLIST_MAXLEVEL] = { NULL };
@@ -704,7 +744,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
         return statusnotok0(_status, "skiplist or key is NULL");
     }
     _status = sl_wrlock(sl, _offsets, 0);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
@@ -776,7 +816,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
 }
 
 status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
     void *k1 = NULL, *k2 = NULL;
     size_t l1 = 0, l2 = 0;
     uint64_t _offsets[] = {};
@@ -786,7 +826,7 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     }
 
     _status = sl_rdlock(sl, _offsets, 0);
-    if (!_status.ok) {
+    if (_status.code != 0) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
@@ -820,64 +860,64 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
 
 status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status_t _status = {.ok = 1};
+    status_t _status = { .code = 0 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
     }
     if ((err = pthread_rwlock_rdlock(&sl->rwlock)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_rdlock(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_rdlock");
     }
     return _status;
 }
 
 status_t sl_wrlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
     }
     if ((err = pthread_rwlock_wrlock(&sl->rwlock)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_wrlock(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_wrlock");
     }
     return _status;
 }
 
 status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
-    status_t _status = { .ok = 1 };
+    status_t _status = { .code = 0 };
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
     }
     if ((err = pthread_rwlock_unlock(&sl->rwlock)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_unlock(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_unlock");
     }
     return _status;
 }
 
 status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     int err;
-    status_t _status = {.ok = 1};
+    status_t _status = { .code = 0 };
 
     if (sl == NULL) {
         return _status;
     }
     if (sl->split != NULL) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
-            return statusnotok2(_status, "pthread_join(%d): %s", err, strerror(err));
+            return statusfuncnotok(_status, err, "pthread_join");
         }
     }
     sl_sync(sl);
     if (sl->meta != NULL && sl->meta->mapped != NULL) {
         if (munmap(sl->meta->mapped, sl->meta->mapsize) == -1) {
-            return statusnotok2(_status, "munmap(%d): %s", errno, strerror(errno));
+            return statusfuncnotok(_status, errno, "munmap");
         }
     }
     if (sl->meta != NULL && sl->data->mapped != NULL) {
         if (munmap(sl->data->mapped, sl->data->mapsize) == -1) {
-            return statusnotok2(_status, "munmap(%d): %s", errno, strerror(errno));
+            return statusfuncnotok(_status, errno, "munmap");
         }
     }
     if (sl->metaname != NULL) {
@@ -903,7 +943,7 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
         list_free(sl->datafree);
     }
     if ((err = pthread_rwlock_destroy(&sl->rwlock)) != 0) {
-        return statusnotok2(_status, "pthread_rwlock_destroy(%d): %s", err, strerror(err));
+        return statusfuncnotok(_status, err, "pthread_rwlock_destroy");
     }
     if (sl->split != NULL) {
         if (sl->split->redolog != NULL) {
@@ -912,19 +952,19 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
             } else {
                 _status = ssl_close(sl->split->redolog);
             }
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->left != NULL) {
             _status = _sl_close(sl->split->left, is_remove_file);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->right != NULL) {
             _status = _sl_close(sl->split->right, is_remove_file);
-            if (!_status.ok) {
+            if (_status.code != 0) {
                 return _status;
             }
         }

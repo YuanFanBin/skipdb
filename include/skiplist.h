@@ -41,9 +41,11 @@
 // #define SKIPLIST_STATE_MERGE_LOG 6  // 分裂者合并redo log
 #define SKIPLIST_STATE_SPLIT_DONE 7 // 分裂完成
 
-#define META_SUFFIX     ".sl.meta"
-#define DATA_SUFFIX     ".sl.data"
-#define REDOLOG_SUFFIX  ".sl.split.redolog"
+#define META_SUFFIX             ".sl.meta"
+#define DATA_SUFFIX             ".sl.data"
+#define SPLIT_REDOLOG_SUFFIX    ".sl.split.redolog"
+#define SPLIT_LEFT_SUFFIX       ".sl.split.left"
+#define SPLIT_RIGHT_SUFFIX      ".sl.split.right"
 
 typedef struct metanode_s {
     uint32_t level;       // 当前节点高度

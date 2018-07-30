@@ -75,6 +75,7 @@ status_t ssl_open(const char* filename, float p, sskiplist_t** ssl);
 status_t ssl_load(const char* filename, sskiplist_t** ssl);
 status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value);
 status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* value);
+status_t ssl_getnode(sskiplist_t* ssl, const void* key, size_t key_len, sskipnode_t** snode);
 status_t ssl_get_maxkey(sskiplist_t* ssl, void** key, size_t* size);
 status_t ssl_del(sskiplist_t* ssl, const void* key, size_t key_len);
 status_t ssl_delput(sskiplist_t* ssl, const void* key, size_t key_len);

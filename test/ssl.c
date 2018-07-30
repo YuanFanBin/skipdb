@@ -27,7 +27,7 @@ void test_sskip() {
     uint64_t value = 0;
 
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     ssl_put(ssl, "abc", 3, 3);
@@ -48,11 +48,11 @@ void test_put(const char* key, uint64_t value) {
     sskiplist_t* ssl = NULL;
 
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     ssl_put(ssl, key, strlen(key), value);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_error("put failed: %s\n", s.errmsg);
     } else {
         log_info("sskiplist.ssl_put(%s, %ld)\n", key, value);
@@ -66,7 +66,7 @@ void test_get(const char* key) {
     sskiplist_t* ssl = NULL;
 
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     ssl_get(ssl, key, strlen(key), &value);
@@ -79,7 +79,7 @@ void test_del(const char* key) {
     sskiplist_t* ssl = NULL;
 
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     ssl_del(ssl, key, strlen(key));
@@ -92,7 +92,7 @@ void test_print(int isprintnode) {
     sskiplist_t* ssl = NULL;
 
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     ssl_print(ssl, stdout, "", isprintnode);
@@ -107,7 +107,7 @@ void benchmarkrand() {
 
     // TEST put
     s = ssl_open(opt.name, opt.p, &ssl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     {
@@ -116,7 +116,7 @@ void benchmarkrand() {
         int i = 0;
         for (i = 0; i < opt.count; ++i) {
             s = ssl_put(ssl, keys[i], strlen(keys[i]), (uint64_t)i);
-            if (!s.ok) {
+            if (s.code != 0) {
                 log_error("%s\n", s.errmsg);
                 break;
             }

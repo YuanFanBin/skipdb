@@ -12,5 +12,7 @@ status_t fileopen(const char* filename, int* fd, uint64_t* size, size_t default_
 status_t filecreate(const char* filename, int* fd, uint64_t* size, size_t default_size);
 status_t filemmap(int fd, uint64_t size, void** mapped);
 status_t filemremap(int fd, void* old_mapped, size_t old_size, size_t new_size, void** new_mapped);
+status_t ommap(const char* filename, uint64_t* mapcap, void** mapped);
+status_t cmmap(const char* filename, uint64_t mapcap, void** mapped);
 
 #endif // __UTIL_H

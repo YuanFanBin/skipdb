@@ -31,7 +31,7 @@ void test_skip() {
     uint64_t value = 0;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_put(sl, "abc", 3, 3);
@@ -52,11 +52,11 @@ void test_put(const char* key, uint64_t value) {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_put(sl, key, strlen(key), value);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_error("put failed: %s\n", s.errmsg);
     } else {
         log_info("skiplist.sl_put(%s, %ld)\n", key, value);
@@ -70,7 +70,7 @@ void test_get(const char* key) {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_get(sl, key, strlen(key), &value);
@@ -83,7 +83,7 @@ void test_del(const char* key) {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_del(sl, key, strlen(key));
@@ -98,7 +98,7 @@ void test_maxkey() {
     size_t size = 0;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_get_maxkey(sl, &key, &size);
@@ -115,7 +115,7 @@ void test_print(int isprintnode) {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_print(sl, stdout, "", isprintnode);
@@ -127,7 +127,7 @@ void test_print_keys() {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_print_keys(sl, stdout);
@@ -139,7 +139,7 @@ void test_print_rkeys() {
     skiplist_t* sl = NULL;
 
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     sl_print_rkeys(sl, stdout);
@@ -154,7 +154,7 @@ void benchmarkrand() {
 
     // TEST put
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     {
@@ -163,7 +163,7 @@ void benchmarkrand() {
         int i = 0;
         for (i = 0; i < opt.count; ++i) {
             s = sl_put(sl, keys[i], strlen(keys[i]), (uint64_t)i);
-            if (!s.ok) {
+            if (s.code != 0) {
                 log_error("%s\n", s.errmsg);
                 break;
             }
@@ -225,7 +225,7 @@ void benchmarkseq() {
 
     // TEST put
     s = sl_open(opt.prefix, opt.p, &sl);
-    if (!s.ok) {
+    if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
     {
@@ -234,7 +234,7 @@ void benchmarkseq() {
         for (i = 0; i < opt.count; ++i) {
             sprintf(str, "key_%d", i);
             s = sl_put(sl, str, strlen(str), (uint64_t)i);
-            if (!s.ok) {
+            if (s.code != 0) {
                 log_error("%s\n", s.errmsg);
                 break;
             }
@@ -298,6 +298,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (argvequal("skip", argv[1])) {
+        opt.prefix = argv[2];
         test_skip();
     } else if (argvequal("print", argv[1])) {
         int isprintnode = 0;
