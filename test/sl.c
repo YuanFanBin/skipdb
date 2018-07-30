@@ -184,7 +184,8 @@ void benchmarkrand() {
     {
         uint64_t value = 0;
         gettimeofday(&start, NULL);
-        for (int i = 0; i < opt.count; ++i) {
+        int i = 0;
+        for (i = 0; i < opt.count; ++i) {
             sl_get(sl, keys[i], strlen(keys[i]), &value);
         }
         gettimeofday(&stop, NULL);
@@ -195,7 +196,7 @@ void benchmarkrand() {
             KEY_LEN - 1,
             e,
             sl->meta->mapsize / 1024.0 / 1024.0 / e,
-            opt.count / e / 10000);
+            i / e / 10000);
     }
 
     {
@@ -227,44 +228,50 @@ void benchmarkseq() {
     if (!s.ok) {
         log_fatal("%s", s.errmsg);
     }
-    gettimeofday(&start, NULL);
-    for (int i = 0; i < opt.count; ++i) {
-        sprintf(str, "key_%d", i);
-        s = sl_put(sl, str, strlen(str), (uint64_t)i);
-        if (!s.ok) {
-            log_error("%s\n", s.errmsg);
-            break;
+    {
+        gettimeofday(&start, NULL);
+        int i = 0;
+        for (i = 0; i < opt.count; ++i) {
+            sprintf(str, "key_%d", i);
+            s = sl_put(sl, str, strlen(str), (uint64_t)i);
+            if (!s.ok) {
+                log_error("%s\n", s.errmsg);
+                break;
+            }
         }
+        gettimeofday(&stop, NULL);
+        sl_print(sl, stdout, "", 0);
+        e = elapse(stop, start);
+        log_info("%s: put(%u * (key_[0-%u]) key) %fs, %fM/s, %fw key/s\n",
+                __FUNCTION__,
+                opt.count,
+                opt.count,
+                e,
+                sl->meta->mapsize / 1024.0 / 1024.0 / e,
+                i / e / 10000);
     }
-    gettimeofday(&stop, NULL);
-    sl_print(sl, stdout, "", 0);
-    e = elapse(stop, start);
-    log_info("%s: put(%u * (key_[0-%u]) key) %fs, %fM/s, %fw key/s\n",
-        __FUNCTION__,
-        opt.count,
-        opt.count,
-        e,
-        sl->meta->mapsize / 1024.0 / 1024.0 / e,
-        opt.count / e / 10000);
 
     // TEST get
-    uint64_t value = 0;
-    gettimeofday(&start, NULL);
-    for (int i = 0; i < opt.count; ++i) {
-        sprintf(str, "key_%d", i);
-        sl_get(sl, str, strlen(str), &value);
+    {
+        uint64_t value = 0;
+        gettimeofday(&start, NULL);
+        int i = 0;
+        for (i = 0; i < opt.count; ++i) {
+            sprintf(str, "key_%d", i);
+            sl_get(sl, str, strlen(str), &value);
+        }
+        gettimeofday(&stop, NULL);
+        e = elapse(stop, start);
+        log_info("%s: get(%u * {key_[0-%u]} key) %fs, %fM/s, %fw key/s\n",
+                __FUNCTION__,
+                opt.count,
+                opt.count,
+                e,
+                sl->meta->mapsize / 1024.0 / 1024.0 / e,
+                i / e / 10000);
     }
-    gettimeofday(&stop, NULL);
-    e = elapse(stop, start);
-    log_info("%s: get(%u * {key_[0-%u]} key) %fs, %fM/s, %fw key/s\n",
-        __FUNCTION__,
-        opt.count,
-        opt.count,
-        e,
-        sl->meta->mapsize / 1024.0 / 1024.0 / e,
-        opt.count / e / 10000);
 
-    sl_close(sl);
+    sl_destroy(sl);
 }
 
 void usage() {
