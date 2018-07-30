@@ -11,7 +11,7 @@ typedef struct {
     bool close;
 } skipdb_t;
 
-status_t skipdb_open();
+status_t skipdb_open(const char *path);
 status_t skipdb_close(skipdb_t *db);
 
 status_t skipdb_sync(skipdb_t *db);

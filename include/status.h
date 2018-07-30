@@ -5,6 +5,7 @@
 
 #define STATUS_SKIPDB_CLOSED 3
 #define STATUS_SKIPDB_NOTFOUND 4
+#define STATUS_SKIPDB_OPEN_FAILED 5
 
 typedef struct {
     int code;
