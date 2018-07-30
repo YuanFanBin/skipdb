@@ -1,9 +1,29 @@
 #include <stdio.h>
 #include <defrag.h>
 
+#include "slice_pvoid.h"
 #include "defrag.h"
 
 int main() {
+
+}
+
+void test_slice_pchar() {
+    slice_pvoid spc = spc_create(0, 0);
+    size_t len = 0;
+
+    spc = spc_append(spc, 0);
+
+    len = spc_len(spc);
+    printf("spc.len: %ld\n", len);
+    for (size_t i = 0; i < len; ++i) {
+        printf("spc.ptr[%ld]: %ld\n", i, (long) spc_get(spc, i));
+    }
+
+    spc_free(spc);
+}
+
+void test_merge_empty_block() {
     // data_size = 20
     // (1, 3) [4, 3] (6, 6) [12, 1] (13, 2) [15, 4]
     uint64_t offset_arr[] = {1, 6, 9, 11, 13};
