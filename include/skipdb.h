@@ -15,6 +15,7 @@ typedef struct {
 
 typedef struct {
     int close;
+    int file_max_index;
     const char *path;
     skipdb_option_t default_option;
     skipdb_option_t *option;
@@ -32,6 +33,7 @@ status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
 status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len);
 
 // private
+void skipdb_get_next_filename(skipdb_t *db, char name[7]);
 const skipdb_option_t *skipdb_get_option(skipdb_t *db);
 
 typedef struct {

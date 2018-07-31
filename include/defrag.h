@@ -1,6 +1,8 @@
 #ifndef SKIPDB_DEFRAG_H
 #define SKIPDB_DEFRAG_H
 
+#include <stdint.h>
+
 typedef struct {
     uint64_t offset;
     uint64_t size;
