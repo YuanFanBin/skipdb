@@ -107,7 +107,7 @@ status_t skipdb_init(skipdb_t *db) {
         }
 
         skiplist_t *sl = NULL;
-        st = sl_open(spc_get(spc, i), option->skiplist_p, &sl);
+        st = sl_open(db, spc_get(spc, i), option->skiplist_p, &sl);
         if (st.code != 0) {
             return st;
         }

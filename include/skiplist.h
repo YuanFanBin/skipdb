@@ -1,7 +1,6 @@
 #ifndef __SKIPLIST_H
 #define __SKIPLIST_H
 
-#include "btree.h"
 #include "list.h"
 #include "status.h"
 #include "std_skiplist.h"
@@ -80,8 +79,10 @@ typedef struct skipdata_s {
 
 struct skipsplit_s;
 
+#include "skipdb.h"
+
 typedef struct skiplist_s {
-    btree_t* btree;
+    skipdb_t* db;
     pthread_rwlock_t rwlock;
     skipmeta_t* meta;                    // 元数据跳表
     skipdata_t* data;                    // 数据跳表
@@ -101,7 +102,7 @@ typedef struct skipsplit_s {
     skiplist_t* right;    // 原始跳表分裂成的有半步分跳表
 } skipsplit_t;
 
-status_t sl_open(btree_t* btree, const char* prefix, float p, skiplist_t** sl);
+status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl);
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value);
 status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value);
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len);

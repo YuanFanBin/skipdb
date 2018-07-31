@@ -176,7 +176,7 @@ status_t _sl_create(skiplist_t* sl, float p) {
     return _status;
 }
 
-status_t _sl_new(btree_t* btree, const char* prefix, skiplist_t** sl) {
+status_t _sl_new(skipdb_t* db, const char* prefix, skiplist_t** sl) {
     int n;
     int err;
     status_t _status = { .code = 0 };
@@ -196,7 +196,7 @@ status_t _sl_new(btree_t* btree, const char* prefix, skiplist_t** sl) {
     (*sl)->metaname = NULL;
     (*sl)->dataname = NULL;
     (*sl)->state = SKIPLIST_STATE_NORMAL;
-    (*sl)->btree = btree;
+    (*sl)->db = db;
 
     if ((err = pthread_rwlock_init(&(*sl)->rwlock, NULL)) != 0) {
         return statusfuncnotok(_status, err, "pthread_rwlock_init");
@@ -214,9 +214,9 @@ status_t _sl_new(btree_t* btree, const char* prefix, skiplist_t** sl) {
     return _status;
 }
 
-static status_t sl_create(btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
+static status_t sl_create(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
-    _status = _sl_new(btree, prefix, sl);
+    _status = _sl_new(db, prefix, sl);
     if (_status.code != 0) {
         sl_close(*sl);
         return _status;
@@ -229,10 +229,10 @@ static status_t sl_create(btree_t* btree, const char* prefix, float p, skiplist_
     return _status;
 }
 
-status_t sl_open(btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
+status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
 
-    _status = _sl_new(btree, prefix, sl);
+    _status = _sl_new(db, prefix, sl);
     if (_status.code != 0) {
         sl_close(*sl);
         return _status;
@@ -372,14 +372,14 @@ static status_t _skipsplit(skiplist_t* sl) {
         free(right_name);
         return _status;
     }
-    _status = sl_create(sl->btree, left_name, sl->meta->p, &sl->split->left);
+    _status = sl_create(sl->db, left_name, sl->meta->p, &sl->split->left);
     free(left_name);
     if (_status.code != 0) {
         free(right_name);
         return _status;
     }
     sl->split->left->state = SKIPLIST_STATE_SPLITER;
-    _status = sl_create(sl->btree, right_name, sl->meta->p, &sl->split->right);
+    _status = sl_create(sl->db, right_name, sl->meta->p, &sl->split->right);
     free(right_name);
     if (_status.code != 0) {
         sl_destroy(sl->split->left);
@@ -530,8 +530,8 @@ static void sl_rename(skiplist_t *sl, const char* prefix) {
 static status_t notify_btree_split(skiplist_t* sl) {
     status_t _status = { .code = 0 };
 
-    if (sl->btree == NULL) {
-        return statusnotok0(_status, "skiplist->btree is NULL");
+    if (sl->db == NULL) {
+        return statusnotok0(_status, "skiplist->db is NULL");
     }
     btree_str_t ostr, lstr, rstr;
     _status = sl_get_maxkey(sl, (void**)&ostr.data, &ostr.size);
@@ -546,19 +546,19 @@ static status_t notify_btree_split(skiplist_t* sl) {
     if (_status.code != 0) {
         return _status;
     }
-    btree_split_cb(sl->btree, ostr, lstr, sl->split->left, rstr, sl->split->right);
+    btree_split_cb(sl->db->btree, ostr, lstr, sl->split->left, rstr, sl->split->right);
     char prefix[7];
     uint64_t _offsets[] = {};
     sl_wrlock(sl->split->left, _offsets, 0);
     sl->split->left->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(prefix);
+    skipdb_get_next_filename(sl->db, prefix);
     sl_rename(sl->split->left, prefix);
     sl_unlock(sl->split->left, _offsets, 0);
     sl->split->left = NULL;
 
     sl_wrlock(sl->split->right, _offsets, 0);
     sl->split->right->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(prefix);
+    skipdb_get_next_filename(sl->db, prefix);
     sl_rename(sl->split->right, prefix);
     sl_unlock(sl->split->right, _offsets, 0);
     sl->split->right = NULL;

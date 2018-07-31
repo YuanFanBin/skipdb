@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include "status.h"
 #include "defrag.h"
-#include "skiplist.h"
 #include "btree.h"
 
 typedef struct {
@@ -21,6 +20,7 @@ typedef struct {
     skipdb_option_t *option;
     btree_t *btree;
 } skipdb_t;
+
 
 status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option);
 status_t skipdb_close(skipdb_t *db);
@@ -43,6 +43,8 @@ typedef struct {
 skiplist_iter_t *skiplist_iter_new(skipdb_t *db);
 void skiplist_iter_free(skiplist_iter_t *iter);
 
-skiplist_t *skiplist_iter_next(skiplist_iter_t *iter);
+#include "skiplist.h"
+
+struct skiplist_s *skiplist_iter_next(skiplist_iter_t *iter);
 
 #endif //SKIPDB_SKIPDB_H
