@@ -266,6 +266,7 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
     void *newchild = NULL;
     key_type newkey;
     int r;
+    pthread_rwlock_wrlock(&(bt->rwlock));
     if (bt->root == NULL) {
         bt->root = allocate_leaf(2 * bt->degree - 1);
         if (bt->root == NULL) return -1;
@@ -286,6 +287,7 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
         bt->root = newroot;
         bt->height++;
     }
+    pthread_rwlock_unlock(&(bt->rwlock));
 
     return r;
 }
@@ -631,8 +633,10 @@ btree_result_t btree_erase_descend(btree_t *bt,
 int btree_erase(btree_t *bt, key_type key) {
     if (!bt->root) return -1;
 
+    pthread_rwlock_wrlock(&(bt->rwlock));
     btree_result_t result = btree_erase_descend(bt, key, bt->root, bt->height - 1, NULL, NULL, NULL, NULL, NULL, 0);
 
+    pthread_rwlock_unlock(&(bt->rwlock));
     return btree_result_has(result, btree_not_found);
 }
 
@@ -646,12 +650,15 @@ btree_t *btree_create(unsigned short degree) {
     bt->fhead = bt->root;
     bt->ftail = bt->root;
     bt->height = 1;
+    pthread_rwlock_init(&(bt->rwlock), NULL);
 
     return bt;
 }
 
 data_type btree_search(btree_t *bt, key_type key) {
     int slot;
+
+    pthread_rwlock_rdlock(&(bt->rwlock));
     void *n = bt->root;
     btree_inode_t *inner;
     btree_fnode_t *leaf;
@@ -667,8 +674,9 @@ data_type btree_search(btree_t *bt, key_type key) {
 
     leaf = n;
     slot = find_lower_leaf(leaf, key);
-    return (slot < leaf->slotuse && key_equal(key, leaf->keyslots[slot]))
+    data_type value = (slot < leaf->slotuse && key_equal(key, leaf->keyslots[slot]))
            ? leaf->dataslots[slot] : NULL;
+    pthread_rwlock_unlock(&(bt->rwlock));
 }
 
 void dump_node(void *n, int level) {

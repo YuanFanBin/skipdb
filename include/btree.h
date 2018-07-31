@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include "btree_str.h"
+#include <pthread.h>
 
 #define BTREE_ASSERT(x)         do { assert(x); } while (0)
 
@@ -52,6 +53,8 @@ typedef struct btree_s {
 
     unsigned short height;
     int degree;
+
+    pthread_rwlock_t rwlock;
 } btree_t;
 
 typedef struct btree_iter_s {
