@@ -679,8 +679,7 @@ data_type btree_search(btree_t *bt, key_type key) {
 
     leaf = n;
     slot = find_lower_leaf(leaf, key);
-    data_type value = (slot < leaf->slotuse && key_equal(key, leaf->keyslots[slot]))
-           ? leaf->dataslots[slot] : bt->ftail->dataslots[bt->ftail->slotuse];
+    data_type value = (slot < leaf->slotuse) ? leaf->dataslots[slot] : bt->ftail->dataslots[bt->ftail->slotuse-1];
     pthread_rwlock_unlock(&(bt->rwlock));
     return value;
 }
