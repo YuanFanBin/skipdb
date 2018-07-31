@@ -184,6 +184,7 @@ static int btree_insert_descend(btree_t *bt,
     BTREE_ASSERT(level >= 0);
     BTREE_ASSERT(node != NULL);
 
+    key = btree_str_copy(key);
     int i, slot;
     if (level == 0) {
         btree_fnode_t *leaf = node;
@@ -713,7 +714,7 @@ void dump_node(void *n, int level) {
     }
 }
 
-void btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
+int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
     if (bt== NULL) {
         return;
     }
@@ -760,4 +761,7 @@ btree_iter_t *btree_iter_next(btree_iter_t *it) {
     it->key = it->node->keyslots[lo];
     it->value = it->node->dataslots[lo++];
     return it;
+}
+
+void btree_destory(btree_t *bt) {
 }
