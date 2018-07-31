@@ -1,11 +1,12 @@
-#ifndef STX_STX_BTREE_H_HEADER
-#define STX_STX_BTREE_H_HEADER
+#ifndef STX_BTREE_H
+#define STX_BTREE_H
 
 #include <assert.h>
+#include "btree_str.h"
 
 #define BTREE_ASSERT(x)         do { assert(x); } while (0)
 
-typedef int key_type;
+typedef btree_str_t key_type;
 typedef void* data_type;
 
 typedef enum result_flags {
@@ -18,13 +19,12 @@ typedef enum result_flags {
     btree_fixmerge = 4
 } result_flags_t;
 
-typedef struct result_s
-{
+typedef struct result_s {
     result_flags_t flags;
 
     key_type       lastkey;
 
-} result_t;
+} btree_result_t;
 
 typedef struct btree_inode_s {
     unsigned short level;
@@ -64,10 +64,12 @@ btree_t *btree_create(unsigned short degree);
 int btree_insert(btree_t *bt, key_type key, data_type value);
 int btree_erase(btree_t *bt, key_type key);
 data_type btree_search(btree_t *bt, key_type key);
-void btree_destory();
+void btree_destory(btree_t *bt);
 
 void dump_node(void *node, int level);
 
+void btree_split_cb_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2);
+
 btree_iter_t *btree_iter(btree_t *bt);
-btree_iter_t *iter_next(btree_iter_t *it);
+btree_iter_t *btree_iter_next(btree_iter_t *it);
 #endif
