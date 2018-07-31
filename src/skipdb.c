@@ -28,7 +28,6 @@ bool find_exists(slice_pvoid spc, char *value) {
 
 // need free
 char *split_prefix(char *value) {
-    char *str = NULL;
     size_t len = strlen(value);
     size_t new_len = len;
 
@@ -39,8 +38,9 @@ char *split_prefix(char *value) {
         }
     }
 
-    str = malloc(sizeof(char) * (new_len + 1));
-    strcpy(str, value);
+    char *str = malloc(sizeof(char) * (new_len + 1));
+    strncpy(str, value, new_len);
+    str[new_len] = '\0';
     return str;
 }
 
@@ -57,7 +57,7 @@ status_t find_sl_names(const char *path, slice_pvoid *p_spc) {
 
     while ((dirp = readdir(dp)) != NULL) {
         char *name = split_prefix(dirp->d_name);
-        if (name == NULL) {
+        if (name == NULL || strlen(name) == 0) {
             continue;
         }
         if (!find_exists(spc, name)) {
@@ -87,7 +87,7 @@ inline const skipdb_option_t *skipdb_get_option(skipdb_t *db) {
 status_t skipdb_init(skipdb_t *db) {
     status_t st = {0};;
     slice_pvoid spc = {0};
-    int max_index = 0;
+    int max_index = 1;
     const skipdb_option_t *option = skipdb_get_option(db);
 
     st = find_sl_names(db->path, &spc);
@@ -114,7 +114,6 @@ status_t skipdb_init(skipdb_t *db) {
 
         void *key = NULL;
         size_t key_len = 0;
-
         st = sl_get_maxkey(sl, &key, &key_len);
         if (st.code != 0) {
             return st;
@@ -128,6 +127,34 @@ status_t skipdb_init(skipdb_t *db) {
 
     sl_names_free(spc);
     spc_free(spc);
+    return st;
+}
+
+status_t skipdb_first(skipdb_t *db) {
+    status_t st = {0};
+    const skipdb_option_t *option = skipdb_get_option(db);
+
+    char filename[SKIPDB_FILENAME_MAX_LEN] = {0};
+    skipdb_get_next_filename(db, filename);
+
+    skiplist_t *sl = NULL;
+    st = sl_open(db, filename, option->skiplist_p, &sl);
+    if (st.code != 0) {
+        return st;
+    }
+
+    void *key = NULL;
+    size_t key_len = 0;
+    st = sl_get_maxkey(sl, &key, &key_len);
+    if (st.code != 0) {
+        return st;
+    }
+
+    if (btree_insert(db->btree, btree_str(key, key_len), sl) == -1) {
+        return (st.code = STATUS_SKIPDB_BTREE_FAILED, st);
+    }
+
+    return st;
 }
 
 status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option) {
@@ -135,7 +162,7 @@ status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option)
     skipdb_t *db = NULL;
 
     db = malloc(sizeof(skipdb_t));
-    db->file_max_index = 1;
+    db->file_max_index = 0;
     db->path = path;
     db->default_option.skiplist_p = 0.25;
     db->default_option.btree_degree = 4;
@@ -145,6 +172,16 @@ status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option)
     st = skipdb_init(db);
     if (st.code != 0) {
         return st;
+    }
+
+    // create
+    if (db->file_max_index == 0) {
+        printf("first create db\n"); // LOG
+
+        st = skipdb_first(db);
+        if (st.code != 0) {
+            return st;
+        }
     }
 
     *p_db = db;
@@ -247,8 +284,12 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
     return st;
 }
 
-void skipdb_get_next_filename(skipdb_t *db, char name[7]) {
-    snprintf(name, 7, "%06d", ++db->file_max_index);
+// need free
+char *skipdb_get_next_filename(skipdb_t *db) {
+    char *data = malloc(strlen(db->path) + SKIPDB_FILENAME_MAX_LEN + 2);
+    // NOTE: %06d 和 SKIPDB_FILENAME_MAX_LEN 相关
+    snprintf(data, strlen(db->path) + SKIPDB_FILENAME_MAX_LEN, "%s\\%06d", db->path, ++db->file_max_index);
+    return data;
 }
 
 // ================ skiplist_iter ================
