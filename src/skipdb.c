@@ -110,7 +110,7 @@ status_t skipdb_init(skipdb_t *db) {
             return st;
         }
 
-        if (btree_insert(db->btree, key, key_len, sl) == -1) {
+        if (btree_insert(db->btree, btree_str(key, key_len), sl) == -1) {
             return (st.code = STATUS_SKIPDB_BTREE_FAILED, st);
         }
     }
@@ -125,10 +125,8 @@ status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option)
 
     db = malloc(sizeof(skipdb_t));
     db->path = path;
-    db->default_option = {
-            .skiplist_p = 0.25,
-            .btree_degree = 4,
-    };
+    db->default_option.skiplist_p = 0.25;
+    db->default_option.btree_degree = 4;
     db->option = option;
     db->btree = btree_create(skipdb_get_option(db)->btree_degree);
 
@@ -187,7 +185,7 @@ status_t skipdb_put(skipdb_t *db, const char *key, size_t key_len, uint64_t valu
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, key, key_len);
+    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
     assert(sl != NULL);
 
     st = sl_put(sl, key, key_len, value);
@@ -198,7 +196,7 @@ status_t skipdb_put(skipdb_t *db, const char *key, size_t key_len, uint64_t valu
     return st;
 }
 
-status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len
+status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
                     uint64_t *p_value) {
     status_t st = {0};
 
@@ -206,7 +204,7 @@ status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, key, key_len);
+    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
     assert(sl != NULL);
 
     uint64_t value = 0;
@@ -226,7 +224,7 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, key, key_len);
+    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
     assert(sl != NULL);
 
     st = sl_del(sl, key, key_len);
@@ -254,7 +252,7 @@ skiplist_t *skiplist_iter_next(skiplist_iter_t *iter) {
 
     if (iter->bt_iter != NULL) {
         sl = iter->bt_iter->value;
-        iter->bt_iter = iter_next(iter->bt_iter);
+        iter->bt_iter = btree_iter_next(iter->bt_iter);
     }
 
     return sl;

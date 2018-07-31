@@ -4,11 +4,11 @@
 #include <stdlib.h>
 
 static inline int key_less(key_type a, key_type b) {
-    return btree_str_cmp(a, b) < 0 ? 1 : 0; 
+    return btree_str_cmp(a, b) < 0 ? 1 : 0;
 }
 
 static inline int key_equal(key_type a, key_type b) {
-    return btree_str_cmp(a, b) == 0 ? 1 : 0; 
+    return btree_str_cmp(a, b) == 0 ? 1 : 0;
 }
 
 static inline btree_result_t btree_result(result_flags_t flags, key_type lastkey) {
@@ -28,7 +28,7 @@ static inline int btree_result_has(btree_result_t r, result_flags_t f) {
     return (r.flags & f) != 0 ? 1 : 0;
 }
 
-static inline btree_result_t btree_result_or (btree_result_t r, btree_result_t other) {
+static inline btree_result_t btree_result_or(btree_result_t r, btree_result_t other) {
     r.flags = (r.flags | other.flags);
 
     if (btree_result_has(other, btree_update_lastkey))
@@ -38,27 +38,27 @@ static inline btree_result_t btree_result_or (btree_result_t r, btree_result_t o
 }
 
 static inline int bt_inode_full(btree_t *bt, btree_inode_t *node) {
-    return (node->slotuse == 2*bt->degree-1) ? 1 : 0;
+    return (node->slotuse == 2 * bt->degree - 1) ? 1 : 0;
 }
 
 static inline int bt_inode_few(btree_t *bt, btree_inode_t *node) {
-    return (node->slotuse <= bt->degree-1) ? 1 : 0;
+    return (node->slotuse <= bt->degree - 1) ? 1 : 0;
 }
 
 static inline int bt_inode_underflow(btree_t *bt, btree_inode_t *node) {
-    return (node->slotuse < bt->degree-1) ? 1 : 0;
+    return (node->slotuse < bt->degree - 1) ? 1 : 0;
 }
 
 static inline int bt_leaf_full(btree_t *bt, btree_fnode_t *node) {
-    return (node->slotuse == 2*bt->degree-1) ? 1 : 0;
+    return (node->slotuse == 2 * bt->degree - 1) ? 1 : 0;
 }
 
 static inline int bt_leaf_few(btree_t *bt, btree_fnode_t *node) {
-    return (node->slotuse <= bt->degree-1) ? 1 : 0;
+    return (node->slotuse <= bt->degree - 1) ? 1 : 0;
 }
 
 static inline int bt_leaf_underflow(btree_t *bt, btree_fnode_t *node) {
-    return (node->slotuse < bt->degree-1) ? 1 : 0;
+    return (node->slotuse < bt->degree - 1) ? 1 : 0;
 }
 
 static inline int find_lower_inner(btree_inode_t *node, key_type key) {
@@ -72,15 +72,15 @@ static inline int find_lower_inner(btree_inode_t *node, key_type key) {
 static inline int find_lower_leaf(btree_fnode_t *node, key_type key) {
     BTREE_ASSERT(node != NULL);
     int ix = 0;
-    while (ix < node->slotuse && key_less(node->keyslots[ix], key)) 
+    while (ix < node->slotuse && key_less(node->keyslots[ix], key))
         ++ix;
     return ix;
 }
 
 static inline int node_slot_use(void *node, int level) {
     BTREE_ASSERT(node != NULL);
-    if (level == 0) return ((btree_fnode_t *)node)->slotuse;
-    return ((btree_inode_t *)node)->slotuse;
+    if (level == 0) return ((btree_fnode_t *) node)->slotuse;
+    return ((btree_inode_t *) node)->slotuse;
 }
 
 static inline btree_fnode_t *allocate_leaf(int maxleafslots) {
@@ -92,8 +92,8 @@ static inline btree_fnode_t *allocate_leaf(int maxleafslots) {
     node->nextleaf = NULL;
     node->level = 0;
     node->slotuse = 0;
-    node->keyslots = malloc(maxleafslots*sizeof(key_type));
-    node->dataslots = malloc(maxleafslots*sizeof(data_type));
+    node->keyslots = malloc(maxleafslots * sizeof(key_type));
+    node->dataslots = malloc(maxleafslots * sizeof(data_type));
     return node;
 }
 
@@ -110,8 +110,8 @@ static inline btree_inode_t *allocate_inner(int maxinnerslots, unsigned short le
     }
 
     node->slotuse = 0;
-    node->keyslots = malloc(maxinnerslots*sizeof(key_type));
-    node->children = malloc((maxinnerslots+1)*sizeof(data_type));
+    node->keyslots = malloc(maxinnerslots * sizeof(key_type));
+    node->children = malloc((maxinnerslots + 1) * sizeof(data_type));
     node->level = level;
     return node;
 }
@@ -132,7 +132,7 @@ static inline void free_node(void *node, int level) {
 static void split_leaf_node(btree_t *bt, btree_fnode_t *leaf, key_type *_newkey, void **_newleaf) {
     int i;
     unsigned int mid = (leaf->slotuse >> 1);
-    btree_fnode_t *newleaf = allocate_leaf(2*bt->degree-1);
+    btree_fnode_t *newleaf = allocate_leaf(2 * bt->degree - 1);
 
     newleaf->nextleaf = leaf->nextleaf;
     if (newleaf->nextleaf == NULL) {
@@ -142,8 +142,8 @@ static void split_leaf_node(btree_t *bt, btree_fnode_t *leaf, key_type *_newkey,
     }
 
     for (i = mid; i < leaf->slotuse; ++i) {
-        newleaf->keyslots[i-mid] = leaf->keyslots[i];
-        newleaf->dataslots[i-mid] = leaf->dataslots[i];
+        newleaf->keyslots[i - mid] = leaf->keyslots[i];
+        newleaf->dataslots[i - mid] = leaf->dataslots[i];
     }
     leaf->slotuse = mid;
     newleaf->slotuse = leaf->slotuse - mid;
@@ -155,19 +155,20 @@ static void split_leaf_node(btree_t *bt, btree_fnode_t *leaf, key_type *_newkey,
     *_newleaf = newleaf;
 }
 
-static void split_inner_node(btree_t *bt, btree_inode_t *inner, key_type *_newkey, void **_newinner, unsigned int addslot) {
+static void
+split_inner_node(btree_t *bt, btree_inode_t *inner, key_type *_newkey, void **_newinner, unsigned int addslot) {
     int i;
     unsigned int mid = (inner->slotuse >> 1);
     if (addslot <= mid && mid > inner->slotuse - (mid + 1))
         mid--;
 
-    btree_inode_t *newinner = allocate_inner(2*bt->degree-1, inner->level);
+    btree_inode_t *newinner = allocate_inner(2 * bt->degree - 1, inner->level);
 
     for (i = mid + 1; i < inner->slotuse; ++i) {
-        newinner->keyslots[i-mid-1] = inner->keyslots[i];
+        newinner->keyslots[i - mid - 1] = inner->keyslots[i];
     }
     for (i = mid + 1; i <= inner->slotuse; ++i) {
-        newinner->children[i-mid-1] = inner->children[i];
+        newinner->children[i - mid - 1] = inner->children[i];
     }
     newinner->slotuse = inner->slotuse - (mid + 1);
     inner->slotuse = mid;
@@ -177,9 +178,9 @@ static void split_inner_node(btree_t *bt, btree_inode_t *inner, key_type *_newke
 }
 
 static int btree_insert_descend(btree_t *bt,
-        void *node, unsigned short level, 
-        key_type key, data_type value, 
-        key_type *splitkey, void **splitnode) {
+                                void *node, unsigned short level,
+                                key_type key, data_type value,
+                                key_type *splitkey, void **splitnode) {
     BTREE_ASSERT(bt != NULL);
     BTREE_ASSERT(level >= 0);
     BTREE_ASSERT(node != NULL);
@@ -203,16 +204,15 @@ static int btree_insert_descend(btree_t *bt,
         }
 
         for (i = leaf->slotuse - 1; i >= slot; --i) {
-            leaf->keyslots[i+1] = leaf->keyslots[i];
-            leaf->dataslots[i+1] = leaf->dataslots[i];
+            leaf->keyslots[i + 1] = leaf->keyslots[i];
+            leaf->dataslots[i + 1] = leaf->dataslots[i];
         }
 
         leaf->keyslots[slot] = key;
         leaf->dataslots[slot] = value;
         leaf->slotuse++;
 
-        if (splitnode && leaf != *splitnode && slot == leaf->slotuse - 1)
-        {
+        if (splitnode && leaf != *splitnode && slot == leaf->slotuse - 1) {
             *splitkey = key;
         }
 
@@ -224,15 +224,15 @@ static int btree_insert_descend(btree_t *bt,
         btree_inode_t *inner = node;
 
         slot = find_lower_inner(inner, key);
-        int r = btree_insert_descend(bt, inner->children[slot], inner->level-1,
-                key, value, &newkey, &newchild);
+        int r = btree_insert_descend(bt, inner->children[slot], inner->level - 1,
+                                     key, value, &newkey, &newchild);
 
         btree_inode_t *fxxk = bt->root;
 
         if (newchild) {
             if (bt_inode_full(bt, inner)) {
                 split_inner_node(bt, inner, splitkey, splitnode, slot);
-                if (slot == inner->slotuse + 1 && inner->slotuse < ((btree_inode_t *)*splitnode)->slotuse) {
+                if (slot == inner->slotuse + 1 && inner->slotuse < ((btree_inode_t *) *splitnode)->slotuse) {
                     splitinner = *splitnode;
                     inner->keyslots[inner->slotuse] = *splitkey;
                     inner->children[inner->slotuse + 1] = splitinner->children[0];
@@ -248,10 +248,10 @@ static int btree_insert_descend(btree_t *bt,
             }
 
             for (i = inner->slotuse - 1; i >= slot; --i) {
-                inner->keyslots[i+1] = inner->keyslots[i];
+                inner->keyslots[i + 1] = inner->keyslots[i];
             }
             for (i = inner->slotuse; i >= slot; --i) {
-                inner->children[i+1] = inner->children[i];
+                inner->children[i + 1] = inner->children[i];
             }
 
             inner->keyslots[slot] = newkey;
@@ -267,18 +267,18 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
     key_type newkey;
     int r;
     if (bt->root == NULL) {
-        bt->root = allocate_leaf(2*bt->degree-1);
+        bt->root = allocate_leaf(2 * bt->degree - 1);
         if (bt->root == NULL) return -1;
         bt->fhead = bt->root;
         bt->ftail = bt->root;
         bt->height = 1;
     }
 
-    r = btree_insert_descend(bt, bt->root, bt->height-1, key, value,
-            &newkey, &newchild);
+    r = btree_insert_descend(bt, bt->root, bt->height - 1, key, value,
+                             &newkey, &newchild);
     if (newchild) {
         btree_inode_t *newroot;
-        newroot = allocate_inner(2*bt->degree-1, bt->height);
+        newroot = allocate_inner(2 * bt->degree - 1, bt->height);
         newroot->keyslots[0] = newkey;
         newroot->children[0] = bt->root;
         newroot->children[1] = newchild;
@@ -291,7 +291,7 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
 }
 
 static btree_result_t merge_leaves(btree_t *bt, btree_fnode_t *left,
-        btree_fnode_t *right, btree_inode_t *parent) {
+                                   btree_fnode_t *right, btree_inode_t *parent) {
     int i;
     for (i = 0; i < right->slotuse; ++i) {
         left->keyslots[left->slotuse + i] = right->keyslots[i];
@@ -311,7 +311,7 @@ static btree_result_t merge_leaves(btree_t *bt, btree_fnode_t *left,
 }
 
 static btree_result_t merge_inner(btree_inode_t *left, btree_inode_t *right,
-        btree_inode_t *parent, unsigned int parentslot) {
+                                  btree_inode_t *parent, unsigned int parentslot) {
     int i;
     left->keyslots[left->slotuse] = parent->keyslots[parentslot];
     left->slotuse++;
@@ -329,8 +329,8 @@ static btree_result_t merge_inner(btree_inode_t *left, btree_inode_t *right,
     return brief_result(btree_fixmerge);
 }
 
-static btree_result_t shift_left_leaf(btree_fnode_t* left, btree_fnode_t* right,
-        btree_inode_t* parent, unsigned int parentslot) {
+static btree_result_t shift_left_leaf(btree_fnode_t *left, btree_fnode_t *right,
+                                      btree_inode_t *parent, unsigned int parentslot) {
     int i;
     unsigned int shiftnum = (right->slotuse - left->slotuse) >> 1;
 
@@ -341,22 +341,21 @@ static btree_result_t shift_left_leaf(btree_fnode_t* left, btree_fnode_t* right,
     left->slotuse += shiftnum;
 
     for (i = shiftnum; i < right->slotuse; ++i) {
-        right->keyslots[i-shiftnum] = right->keyslots[i];
-        right->dataslots[i-shiftnum] = right->dataslots[i];
+        right->keyslots[i - shiftnum] = right->keyslots[i];
+        right->dataslots[i - shiftnum] = right->dataslots[i];
     }
     right->slotuse -= shiftnum;
 
     if (parentslot < parent->slotuse) {
         parent->keyslots[parentslot] = left->keyslots[left->slotuse - 1];
         return brief_result(btree_ok);
-    }
-    else {
+    } else {
         return btree_result(btree_update_lastkey, left->keyslots[left->slotuse - 1]);
     }
 }
 
-static void shift_left_inner(btree_inode_t* left, btree_inode_t* right,
-        btree_inode_t* parent, unsigned int parentslot) {
+static void shift_left_inner(btree_inode_t *left, btree_inode_t *right,
+                             btree_inode_t *parent, unsigned int parentslot) {
     int i;
     unsigned int shiftnum = (right->slotuse - left->slotuse) >> 1;
 
@@ -374,54 +373,54 @@ static void shift_left_inner(btree_inode_t* left, btree_inode_t* right,
     parent->keyslots[parentslot] = right->keyslots[shiftnum - 1];
 
     for (i = shiftnum; i < right->slotuse; ++i) {
-        right->keyslots[i-shiftnum] = right->keyslots[i];
+        right->keyslots[i - shiftnum] = right->keyslots[i];
     }
     for (i = shiftnum; i <= right->slotuse; ++i) {
-        right->children[i-shiftnum] = right->children[i];
+        right->children[i - shiftnum] = right->children[i];
     }
 
     right->slotuse -= shiftnum;
 }
 
-static void shift_right_leaf(btree_fnode_t* left, btree_fnode_t* right,
-        btree_inode_t* parent, unsigned int parentslot) {
+static void shift_right_leaf(btree_fnode_t *left, btree_fnode_t *right,
+                             btree_inode_t *parent, unsigned int parentslot) {
     int i;
     unsigned int shiftnum = (left->slotuse - right->slotuse) >> 1;
 
     for (i = right->slotuse - 1; i >= 0; ++i) {
-        right->keyslots[i+shiftnum] = right->keyslots[i];
-        right->dataslots[i+shiftnum] = right->dataslots[i];
+        right->keyslots[i + shiftnum] = right->keyslots[i];
+        right->dataslots[i + shiftnum] = right->dataslots[i];
     }
     right->slotuse += shiftnum;
 
     for (i = 0; i < shiftnum; ++i) {
-        right->keyslots[i] = left->keyslots[left->slotuse-shiftnum+i];
-        right->dataslots[i] = left->dataslots[left->slotuse-shiftnum+i];
+        right->keyslots[i] = left->keyslots[left->slotuse - shiftnum + i];
+        right->dataslots[i] = left->dataslots[left->slotuse - shiftnum + i];
     }
 
     left->slotuse -= shiftnum;
     parent->keyslots[parentslot] = left->keyslots[left->slotuse - 1];
 }
 
-static void shift_right_inner(btree_inode_t* left, btree_inode_t* right, 
-        btree_inode_t* parent, unsigned int parentslot) {
+static void shift_right_inner(btree_inode_t *left, btree_inode_t *right,
+                              btree_inode_t *parent, unsigned int parentslot) {
     int i;
     unsigned int shiftnum = (left->slotuse - right->slotuse) >> 1;
 
     for (i = right->slotuse - 1; i >= 0; ++i) {
-        right->keyslots[i+shiftnum] = right->keyslots[i];
-        right->children[i+shiftnum+1] = right->children[i+1];
+        right->keyslots[i + shiftnum] = right->keyslots[i];
+        right->children[i + shiftnum + 1] = right->children[i + 1];
     }
-    right->children[i+shiftnum+1] = right->children[i+1];
+    right->children[i + shiftnum + 1] = right->children[i + 1];
 
     right->slotuse += shiftnum;
     right->keyslots[shiftnum - 1] = parent->keyslots[parentslot];
 
     for (i = 0; i < shiftnum - 1; ++i) {
-        right->keyslots[i] = left->keyslots[left->slotuse-shiftnum+i+1];
-        right->children[i] = left->children[left->slotuse-shiftnum+i+1];
+        right->keyslots[i] = left->keyslots[left->slotuse - shiftnum + i + 1];
+        right->children[i] = left->children[left->slotuse - shiftnum + i + 1];
     }
-    right->children[i] = left->children[left->slotuse-shiftnum+i+1];
+    right->children[i] = left->children[left->slotuse - shiftnum + i + 1];
 
     parent->keyslots[parentslot] = left->keyslots[left->slotuse - shiftnum];
 
@@ -429,56 +428,55 @@ static void shift_right_inner(btree_inode_t* left, btree_inode_t* right,
 }
 
 btree_result_t btree_erase_descend(btree_t *bt,
-        key_type key,
-        void* curr, int level,
-        void* left, void* right,
-        btree_inode_t* leftparent, btree_inode_t* rightparent,
-        btree_inode_t* parent, unsigned int parentslot) {
+                                   key_type key,
+                                   void *curr, int level,
+                                   void *left, void *right,
+                                   btree_inode_t *leftparent, btree_inode_t *rightparent,
+                                   btree_inode_t *parent, unsigned int parentslot) {
     if (level == 0) {
         int i;
-        btree_fnode_t *leaf =curr;
+        btree_fnode_t *leaf = curr;
         btree_fnode_t *leftleaf = left;
         btree_fnode_t *rightleaf = right;
 
         int slot = find_lower_leaf(leaf, key);
-        if (slot >= leaf->slotuse || !key_equal(key, leaf->keyslots[slot]))
-        {
+        if (slot >= leaf->slotuse || !key_equal(key, leaf->keyslots[slot])) {
             return brief_result(btree_not_found);
         }
 
         for (i = slot + 1; i < leaf->slotuse; ++i) {
-            leaf->keyslots[i-1] = leaf->keyslots[i];
-            leaf->dataslots[i-1] = leaf->dataslots[i];
+            leaf->keyslots[i - 1] = leaf->keyslots[i];
+            leaf->dataslots[i - 1] = leaf->dataslots[i];
         }
         leaf->slotuse--;
 
         btree_result_t myres = brief_result(btree_ok);
-        
+
         if (slot == leaf->slotuse) {
             if (parent == NULL) {
                 BTREE_ASSERT(leaf == bt->root);
-            }
-            else if (parentslot < parent->slotuse) {
+            } else if (parentslot < parent->slotuse) {
                 if (leaf->slotuse > 0) {
                     parent->keyslots[parentslot] = leaf->keyslots[leaf->slotuse - 1];
                 }
             } else {
-                if (leaf->slotuse > 0 ) {
-                    myres = btree_result_or(myres, btree_result(btree_update_lastkey, 
-                                leaf->keyslots[leaf->slotuse - 1]));
+                if (leaf->slotuse > 0) {
+                    myres = btree_result_or(myres, btree_result(btree_update_lastkey,
+                                                                leaf->keyslots[leaf->slotuse - 1]));
                 } else {
-                    myres = btree_result_or(myres, btree_result(btree_update_lastkey, leftleaf->keyslots[leftleaf->slotuse - 1]));
+                    myres = btree_result_or(myres, btree_result(btree_update_lastkey,
+                                                                leftleaf->keyslots[leftleaf->slotuse - 1]));
                     //diff
                     //BTREE_ASSERT(leaf == bt->root);
                 }
             }
         }
-        
+
 
         if (bt_leaf_underflow(bt, leaf)) {
             if (leaf == bt->root) {
                 if (leaf->slotuse >= 1) {
-                    return brief_result(btree_ok);;  
+                    return brief_result(btree_ok);;
                 } else {
                     leaf = NULL;
                     //free_node(bt->root, bt->height-1);
@@ -489,35 +487,30 @@ btree_result_t btree_erase_descend(btree_t *bt,
 
                     return brief_result(btree_ok);
                 }
-            }
-            else if ((leftleaf == NULL || bt_leaf_few(bt, leftleaf)) 
-                    && (rightleaf == NULL || bt_leaf_few(bt, rightleaf))) {
+            } else if ((leftleaf == NULL || bt_leaf_few(bt, leftleaf))
+                       && (rightleaf == NULL || bt_leaf_few(bt, rightleaf))) {
                 if (leftparent == parent)
                     myres = btree_result_or(myres, merge_leaves(bt, leftleaf, leaf, leftparent));
                 else
                     myres = btree_result_or(myres, merge_leaves(bt, leaf, rightleaf, rightparent));
-            }
-            else if ((leftleaf != NULL && bt_leaf_few(bt, leftleaf)) 
-                    && (rightleaf != NULL && !bt_leaf_few(bt, rightleaf))) {
+            } else if ((leftleaf != NULL && bt_leaf_few(bt, leftleaf))
+                       && (rightleaf != NULL && !bt_leaf_few(bt, rightleaf))) {
                 if (rightparent == parent)
                     myres = btree_result_or(myres, shift_left_leaf(leaf, rightleaf, rightparent, parentslot));
                 else
                     myres = btree_result_or(myres, merge_leaves(bt, leftleaf, leaf, leftparent));
-            }
-            else if ((leftleaf != NULL && !bt_leaf_few(bt, leftleaf)) 
-                    && (rightleaf != NULL && bt_leaf_few(bt, rightleaf))) {
+            } else if ((leftleaf != NULL && !bt_leaf_few(bt, leftleaf))
+                       && (rightleaf != NULL && bt_leaf_few(bt, rightleaf))) {
                 if (leftparent == parent)
                     shift_right_leaf(leftleaf, leaf, leftparent, parentslot - 1);
                 else
                     myres = btree_result_or(myres, merge_leaves(bt, leaf, rightleaf, rightparent));
-            }
-            else if (leftparent == rightparent) {
+            } else if (leftparent == rightparent) {
                 if (leftleaf->slotuse <= rightleaf->slotuse)
                     myres = btree_result_or(myres, shift_left_leaf(leaf, rightleaf, rightparent, parentslot));
                 else
                     shift_right_leaf(leftleaf, leaf, leftparent, parentslot - 1);
-            }
-            else {
+            } else {
                 if (leftparent == parent)
                     shift_right_leaf(leftleaf, leaf, leftparent, parentslot - 1);
                 else
@@ -528,7 +521,7 @@ btree_result_t btree_erase_descend(btree_t *bt,
         return myres;
     } else {
         int i;
-        btree_inode_t* myleftparent, * myrightparent;
+        btree_inode_t *myleftparent, *myrightparent;
         btree_inode_t *inner = curr;
         btree_inode_t *leftinner = left;
         btree_inode_t *rightinner = right;
@@ -537,30 +530,28 @@ btree_result_t btree_erase_descend(btree_t *bt,
 
         int slot = find_lower_inner(inner, key);
         if (slot == 0) {
-            myleft = (left == NULL) ? NULL : ((btree_inode_t*)left)->children[((btree_inode_t*)left)->slotuse];
+            myleft = (left == NULL) ? NULL : ((btree_inode_t *) left)->children[((btree_inode_t *) left)->slotuse];
             // diff
             myleftparent = left;
-        }
-        else {
+        } else {
             myleft = inner->children[slot - 1];
             myleftparent = inner;
         }
 
         if (slot == inner->slotuse) {
-            myright = (right == NULL) ? NULL : ((btree_inode_t*)right)->children[0];
+            myright = (right == NULL) ? NULL : ((btree_inode_t *) right)->children[0];
             // diff
             myrightparent = right;
-        }
-        else {
+        } else {
             myright = inner->children[slot + 1];
             myrightparent = inner;
         }
 
         btree_result_t result = btree_erase_descend(bt, key,
-                inner->children[slot], level-1, 
-                myleft, myright,
-                myleftparent, myrightparent,
-                inner, slot);
+                                                    inner->children[slot], level - 1,
+                                                    myleft, myright,
+                                                    myleftparent, myrightparent,
+                                                    inner, slot);
 
         btree_result_t myres = brief_result(btree_ok);
         if (btree_result_has(result, btree_not_found)) {
@@ -577,18 +568,17 @@ btree_result_t btree_erase_descend(btree_t *bt,
         }
 
         if (btree_result_has(result, btree_fixmerge)) {
-            if (node_slot_use(inner->children[slot], inner->level-1) != 0)
+            if (node_slot_use(inner->children[slot], inner->level - 1) != 0)
                 slot++;
             //free_node(inner->children[slot], inner->level - 1);
             //dump_node(fxxk, level-1);
             for (i = slot; i < inner->slotuse; ++i) {
-                inner->keyslots[i-1] = inner->keyslots[i];
-                inner->children[i] = inner->children[i+1];
+                inner->keyslots[i - 1] = inner->keyslots[i];
+                inner->children[i] = inner->children[i + 1];
             }
             inner->slotuse--;
 
-            if (inner->level == 1)
-            {
+            if (inner->level == 1) {
                 slot--;
                 btree_fnode_t *child = inner->children[slot];
                 inner->keyslots[slot] = child->keyslots[child->slotuse - 1];
@@ -603,20 +593,20 @@ btree_result_t btree_erase_descend(btree_t *bt,
                 //free_node(inner, level);
 
                 return brief_result(btree_ok);
-            } else if ((leftinner == NULL || bt_inode_few(bt, leftinner)) 
-                    && (rightinner == NULL || bt_inode_few(bt, rightinner))) {
+            } else if ((leftinner == NULL || bt_inode_few(bt, leftinner))
+                       && (rightinner == NULL || bt_inode_few(bt, rightinner))) {
                 if (leftparent == parent)
                     myres = btree_result_or(myres, merge_inner(leftinner, inner, leftparent, parentslot - 1));
                 else
                     myres = btree_result_or(myres, merge_inner(inner, rightinner, rightparent, parentslot));
-            } else if ((leftinner != NULL && bt_inode_few(bt, leftinner)) 
-                    && (rightinner != NULL && !bt_inode_few(bt, rightinner))) {
+            } else if ((leftinner != NULL && bt_inode_few(bt, leftinner))
+                       && (rightinner != NULL && !bt_inode_few(bt, rightinner))) {
                 if (rightparent == parent)
                     shift_left_inner(inner, rightinner, rightparent, parentslot);
                 else
                     myres = btree_result_or(myres, merge_inner(leftinner, inner, leftparent, parentslot - 1));
-            } else if ((leftinner != NULL && !bt_inode_few(bt, leftinner)) 
-                    && (rightinner != NULL && bt_inode_few(bt, rightinner))) {
+            } else if ((leftinner != NULL && !bt_inode_few(bt, leftinner))
+                       && (rightinner != NULL && bt_inode_few(bt, rightinner))) {
                 if (leftparent == parent)
                     shift_right_inner(leftinner, inner, leftparent, parentslot - 1);
                 else
@@ -651,7 +641,7 @@ btree_t *btree_create(unsigned short degree) {
     BTREE_ASSERT(bt != NULL);
     bt->degree = degree;
 
-    bt->root = allocate_leaf(2*bt->degree-1);
+    bt->root = allocate_leaf(2 * bt->degree - 1);
     BTREE_ASSERT(bt->root != NULL);
     bt->fhead = bt->root;
     bt->ftail = bt->root;
@@ -662,7 +652,7 @@ btree_t *btree_create(unsigned short degree) {
 
 data_type btree_search(btree_t *bt, key_type key) {
     int slot;
-    void* n = bt->root;
+    void *n = bt->root;
     btree_inode_t *inner;
     btree_fnode_t *leaf;
     unsigned short level = bt->height - 1;
@@ -678,7 +668,7 @@ data_type btree_search(btree_t *bt, key_type key) {
     leaf = n;
     slot = find_lower_leaf(leaf, key);
     return (slot < leaf->slotuse && key_equal(key, leaf->keyslots[slot]))
-        ? leaf->dataslots[slot] : NULL;
+           ? leaf->dataslots[slot] : NULL;
 }
 
 void dump_node(void *n, int level) {
@@ -691,8 +681,7 @@ void dump_node(void *n, int level) {
         printf("--------------------\n");
         printf("|      level=%d     |\n", leaf->level);
         printf("--------------------\n|");
-        for (slot = 0; slot < leaf->slotuse; ++slot)
-        {
+        for (slot = 0; slot < leaf->slotuse; ++slot) {
             //printf("  %d  |", leaf->keyslots[slot]);
         }
         printf("\n--------------------\n");
@@ -701,26 +690,31 @@ void dump_node(void *n, int level) {
         printf("--------------------\n");
         printf("|      level=%d     |\n", inner->level);
         printf("--------------------\n|");
-        for (slot = 0; slot < inner->slotuse; ++slot)
-        {
+        for (slot = 0; slot < inner->slotuse; ++slot) {
             //printf("  %d  |", inner->keyslots[slot]);
         }
         printf("\n--------------------\n");
-        for (slot = 0; slot <= inner->slotuse; ++slot)
-        {
+        for (slot = 0; slot <= inner->slotuse; ++slot) {
             subnode = inner->children[slot];
             dump_node(subnode, level - 1);
         }
     }
 }
 
-int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
-    if (bt== NULL) {
-        return;
+int
+btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
+    BTREE_ASSERT(bt != NULL);
+
+    if (btree_erase(bt, oldkey) != 0) {
+        return -1;
     }
-    btree_erase(bt, oldkey);
-    btree_insert(bt, newkey1, value1);
-    btree_insert(bt, newkey2, value2);
+    if (btree_insert(bt, newkey1, value1) != 0) {
+        return -1;
+    }
+    if (btree_insert(bt, newkey2, value2) != 0) {
+        return -1;
+    }
+    return 0;
 }
 
 btree_iter_t *btree_iter(btree_t *bt) {

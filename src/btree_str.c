@@ -10,7 +10,7 @@ inline btree_str_t btree_str(char *ptr, size_t size) {
 }
 
 inline int btree_str_cmp(btree_str_t a, btree_str_t b) {
-    int min_len = a.size < b.size ? a.size : b.size;
+    size_t min_len = a.size < b.size ? a.size : b.size;
     int r = memcmp(a.data, b.data, min_len);
     if (r == 0) {
         if (a.size < b.size) {

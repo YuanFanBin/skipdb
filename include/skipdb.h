@@ -26,8 +26,8 @@ status_t skipdb_close(skipdb_t *db);
 
 status_t skipdb_sync(skipdb_t *db);
 
-status_t skipdb_put(skipdb_t *db); // TODO 考虑 option. 像leveldb
-status_t skipdb_get(skipdb_t *db, const char *key, size_t key_size,
+status_t skipdb_put(skipdb_t *db, const char *key, size_t key_len, uint64_t value); // TODO 考虑 option. 像leveldb
+status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
                     uint64_t *p_value);
 status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len);
 
