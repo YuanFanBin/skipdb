@@ -6,6 +6,8 @@
 #include "defrag.h"
 #include "btree.h"
 
+#define SKIPDB_FILENAME_MAX_LEN 6
+
 typedef struct {
     unsigned short btree_degree;
     float skiplist_p;
@@ -33,7 +35,7 @@ status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
 status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len);
 
 // private
-void skipdb_get_next_filename(skipdb_t *db, char name[7]);
+char *skipdb_get_next_filename(skipdb_t *db);
 const skipdb_option_t *skipdb_get_option(skipdb_t *db);
 
 typedef struct {

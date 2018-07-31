@@ -312,6 +312,9 @@ static void* run_skipsplit(void* arg) {
         return NULL;
     }
     datanode_t* ldnode = sl_get_datanode(sl->split->left, lmnode->offset);
+    char* key = (char*)malloc(sizeof(char) * ldnode->size);
+    memcpy(key, ldnode->data, ldnode->size);
+    size_t size = ldnode->size;
     sskipnode_t* ssnode = SSL_NODEHEAD(sl->split->redolog);
     while (1) {
         sskipnode_t* next = SSL_NODE(sl->split->redolog, ssnode->forwards[-1]);
@@ -319,7 +322,7 @@ static void* run_skipsplit(void* arg) {
             break;
         }
         skiplist_t* seleted = NULL;
-        switch (compare(next->key, next->key_len, ldnode->data, ldnode->size)) {
+        switch (compare(next->key, next->key_len, key, size)) {
             case 1:
                 seleted = sl->split->right;
                 break;
@@ -333,6 +336,7 @@ static void* run_skipsplit(void* arg) {
         }
         ssnode = next;
     }
+    free(key);
     ssl_destroy(sl->split->redolog);
     sl->split->redolog = NULL;
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
@@ -547,19 +551,21 @@ static status_t notify_btree_split(skiplist_t* sl) {
         return _status;
     }
     btree_split_cb(sl->db->btree, ostr, lstr, sl->split->left, rstr, sl->split->right);
-    char prefix[7];
+    char* prefix;
     uint64_t _offsets[] = {};
     sl_wrlock(sl->split->left, _offsets, 0);
     sl->split->left->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(sl->db, prefix);
+    prefix = skipdb_get_next_filename(sl->db);
     sl_rename(sl->split->left, prefix);
+    free(prefix);
     sl_unlock(sl->split->left, _offsets, 0);
     sl->split->left = NULL;
 
     sl_wrlock(sl->split->right, _offsets, 0);
     sl->split->right->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(sl->db, prefix);
+    prefix = skipdb_get_next_filename(sl->db);
     sl_rename(sl->split->right, prefix);
+    free(prefix);
     sl_unlock(sl->split->right, _offsets, 0);
     sl->split->right = NULL;
 
@@ -882,27 +888,39 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
-        ssl_get_maxkey(sl->split->redolog, &k1, &l1);
-        sl_get_maxkey(sl, &k2, &l2);
-        if (compare(k1, l1, k2, l2) == -1) {
+        status_t s1 = ssl_get_maxkey(sl->split->redolog, &k1, &l1);
+        status_t s2 = sl_get_maxkey(sl, &k2, &l2);
+        if (s1.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            *key = k2;
+            *size = l2;
+            _status = s2;
+        } else if (s2.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            *key = k1;
+            *size = l1;
+            _status = s1;
+        } else if (compare(k1, l1, k2, l2) == -1) {
             *key = k2;
             *size = l2;
         } else {
             *key = k1;
             *size = l1;
         }
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
-        sl_get_maxkey(sl->split->right, key, size);
-        if (key == NULL) {
-            sl_get_maxkey(sl->split->left, key, size);
+        _status = sl_get_maxkey(sl->split->right, key, size);
+        if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            _status = sl_get_maxkey(sl->split->left, key, size);
         }
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     metanode_t* mnode = METANODE(sl, sl->meta->tail);
     if (mnode == NULL) {
-        return sl_unlock(sl, _offsets, 0);
+        _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
+        sl_unlock(sl, _offsets, 0);
+        return _status;
     }
     datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
     *key = dnode->data;

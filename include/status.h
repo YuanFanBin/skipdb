@@ -10,6 +10,7 @@
 #define STATUS_SKIPDB_FILENAME_ERROR 7
 
 #define STATUS_SKIPLIST_KEY_NOTFOUND 100
+#define STATUS_SKIPLIST_MAXKEY_NOTFOUND 101
 
 typedef struct {
     int code;

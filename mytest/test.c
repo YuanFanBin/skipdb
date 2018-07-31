@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <status.h>
 
 #include "slice_pvoid.h"
 #include "defrag.h"
+#include "skipdb.h"
 
 void test_slice_pchar() {
     slice_pvoid spc = spc_create(0, 0);
@@ -42,6 +44,22 @@ void test_merge_empty_block() {
     printf("%ld, %ld\n", blocks_size, blocks_sum);
 }
 
+void test_main() {
+    skipdb_t *db = NULL;
+    status_t st;
+    st = skipdb_open("./data", &db, NULL);
+    if (st.code != 0) {
+        printf("code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+
+    st = skipdb_close(db);
+    if (st.code != 0) {
+        printf("code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+}
+
 int main() {
-    test_merge_empty_block();
+    test_main();
 }
