@@ -888,27 +888,39 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
-        ssl_get_maxkey(sl->split->redolog, &k1, &l1);
-        sl_get_maxkey(sl, &k2, &l2);
-        if (compare(k1, l1, k2, l2) == -1) {
+        status_t s1 = ssl_get_maxkey(sl->split->redolog, &k1, &l1);
+        status_t s2 = sl_get_maxkey(sl, &k2, &l2);
+        if (s1.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            *key = k2;
+            *size = l2;
+            _status = s2;
+        } else if (s2.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            *key = k1;
+            *size = l1;
+            _status = s1;
+        } else if (compare(k1, l1, k2, l2) == -1) {
             *key = k2;
             *size = l2;
         } else {
             *key = k1;
             *size = l1;
         }
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
-        sl_get_maxkey(sl->split->right, key, size);
-        if (key == NULL) {
-            sl_get_maxkey(sl->split->left, key, size);
+        _status = sl_get_maxkey(sl->split->right, key, size);
+        if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            _status = sl_get_maxkey(sl->split->left, key, size);
         }
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     metanode_t* mnode = METANODE(sl, sl->meta->tail);
     if (mnode == NULL) {
-        return sl_unlock(sl, _offsets, 0);
+        _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
+        sl_unlock(sl, _offsets, 0);
+        return _status;
     }
     datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
     *key = dnode->data;
