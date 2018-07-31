@@ -101,7 +101,7 @@ typedef struct skipsplit_s {
     skiplist_t* right;    // 原始跳表分裂成的有半步分跳表
 } skipsplit_t;
 
-status_t sl_open(const btree_t* btree, const char* prefix, float p, skiplist_t** sl);
+status_t sl_open(btree_t* btree, const char* prefix, float p, skiplist_t** sl);
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value);
 status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value);
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len);

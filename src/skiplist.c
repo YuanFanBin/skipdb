@@ -176,7 +176,7 @@ status_t _sl_create(skiplist_t* sl, float p) {
     return _status;
 }
 
-status_t _sl_new(const btree_t* btree, const char* prefix, skiplist_t** sl) {
+status_t _sl_new(btree_t* btree, const char* prefix, skiplist_t** sl) {
     int n;
     int err;
     status_t _status = { .code = 0 };
@@ -214,7 +214,7 @@ status_t _sl_new(const btree_t* btree, const char* prefix, skiplist_t** sl) {
     return _status;
 }
 
-static status_t sl_create(const btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
+static status_t sl_create(btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
     _status = _sl_new(btree, prefix, sl);
     if (_status.code != 0) {
@@ -229,7 +229,7 @@ static status_t sl_create(const btree_t* btree, const char* prefix, float p, ski
     return _status;
 }
 
-status_t sl_open(const btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
+status_t sl_open(btree_t* btree, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
 
     _status = _sl_new(btree, prefix, sl);
