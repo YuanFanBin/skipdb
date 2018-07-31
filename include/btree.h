@@ -73,6 +73,8 @@ void dump_node(void *node, int level);
 
 int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2);
 
+int btree_adjust_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1);
+
 btree_iter_t *btree_iter(btree_t *bt);
 btree_iter_t *btree_iter_next(btree_iter_t *it);
 #endif
