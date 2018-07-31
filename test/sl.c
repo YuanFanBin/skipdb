@@ -40,7 +40,7 @@ void test_skip() {
     sl_put(sl, "aa", 2, 6);
     sl_put(sl, "doy", 3, 7);
     sl_get(sl, "def", 3, &value);
-    printf("[\033[40;5m%s\033[0m] = %ld\n", "def", value);
+    printf("[\033[40;5m%s\033[0m] = %llu\n", "def", value);
 
     sl_print(sl, stdout, "", 1);
 

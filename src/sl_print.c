@@ -8,7 +8,7 @@ static void printmetanode(FILE* stream, const char* prefix, metanode_t* mnode, u
     if (mnode == NULL) {
         return;
     }
-    fprintf(stream, "%s[\033[36m%8lu\033[0m]: level = %d, flag = 0x%04x, offset = %ld, backward = %ld, value = %ld, forwards = [%ld",
+    fprintf(stream, "%s[\033[36m%8llu\033[0m]: level = %d, flag = 0x%04x, offset = %llu, backward = %llu, value = %llu, forwards = [%llu",
         prefix,
         pos,
         mnode->level,
@@ -18,7 +18,7 @@ static void printmetanode(FILE* stream, const char* prefix, metanode_t* mnode, u
         mnode->value,
         mnode->forwards[0]);
     for (int i = 1; i < (int)mnode->level; ++i) {
-        fprintf(stream, ", %ld", mnode->forwards[i]);
+        fprintf(stream, ", %llu", mnode->forwards[i]);
     }
     fprintf(stream, "], ");
 }
@@ -78,7 +78,7 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
     for (int i = 0; i < curr->level; ++i) {
         fprintf(stream, "%s[LEVEL %2d]: %d\n", prefix, i + 1, lvlcnt[i + 1]);
     }
-    fprintf(stream, "%s\033[34mcount = %d, p = %.2f, tail = %ld, mapsize = %ldB(%.2lfM), mapcap = %ldB(%.2lfM)\033[0m\n",
+    fprintf(stream, "%s\033[34mcount = %d, p = %.2f, tail = %llu, mapsize = %lluB(%.2lfM), mapcap = %lluB(%.2lfM)\033[0m\n",
             prefix,
             sl->meta->count,
             sl->meta->p,
@@ -101,7 +101,7 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
 
     // skiplist->data
     fprintf(stream, "%s\033[31m[ skiplist->data ]\033[0m\n", prefix);
-    fprintf(stream, "%s\033[34mmapsize = %ldB(%.2lfM), mapcap = %ldB(%.2lfM)\033[0m\n",
+    fprintf(stream, "%s\033[34mmapsize = %lluB(%.2lfM), mapcap = %lluB(%.2lfM)\033[0m\n",
             prefix,
             sl->data->mapsize, sl->data->mapsize / 1024.0 / 1024.0,
             sl->data->mapcap, sl->data->mapcap / 1024.0 / 1024.0);
@@ -112,7 +112,7 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
         listnode_t* lnode = sl->datafree->head;
         while (lnode != NULL) {
             datanode_t* dnode = sl_get_datanode(sl, lnode->value);
-            fprintf(stream, "[\033[36m%8lu\033[0m]]: offset = %ld, size = %d, data = ",
+            fprintf(stream, "[\033[36m%8llu\033[0m]]: offset = %llu, size = %d, data = ",
                     lnode->value,
                     dnode->offset,
                     dnode->size);
@@ -147,7 +147,7 @@ void sl_print_keys(skiplist_t* sl, FILE* stream) {
         }
         dnode = sl_get_datanode(sl, next->offset);
         write(fileno(stream), dnode->data, dnode->size);
-        fprintf(stream, ", %ld\n", next->value);
+        fprintf(stream, ", %llu\n", next->value);
         curr = next;
     }
 }
@@ -164,7 +164,7 @@ void sl_print_rkeys(skiplist_t* sl, FILE* stream) {
             printnode(sl, stream, "", curr, (uint64_t)((void*)curr - sl->meta->mapped));
         }
         write(fileno(stream), dnode->data, dnode->size);
-        fprintf(stream, ", %ld\n", curr->value);
+        fprintf(stream, ", %llu\n", curr->value);
         curr = METANODE(sl, curr->backward);
     }
 }

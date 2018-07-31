@@ -86,9 +86,13 @@ status_t ssl_sync(sskiplist_t* ssl);
 status_t ssl_close(sskiplist_t* ssl);
 status_t ssl_destroy(sskiplist_t* ssl);
 
-#define SSL_NODEHEAD(ssl) ((sskipnode_t*)((ssl)->index->mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL))
-#define SSL_NODE(ssl, offset) ((offset) == 0 ? NULL : ((sskipnode_t*)((ssl)->index->mapped + (offset))))
-#define SSL_NODESIZE(node) (sizeof(sskipnode_t) + sizeof(uint64_t) * (node)->level + (node)->key_len)
-#define SSL_NODEPOSITION(ssl, node) ((uint64_t)((void*)(node) - (ssl)->index->mapped))
+#define SSL_NODEHEAD(ssl)               \
+    ((sskipnode_t*)((ssl)->index->mapped + sizeof(sskipindex_t) + sizeof(uint64_t) * SSL_MAXLEVEL))
+#define SSL_NODE(ssl, offset)           \
+    ((offset) == 0 ? NULL : ((sskipnode_t*)((ssl)->index->mapped + (offset))))
+#define SSL_NODESIZE(node)              \
+    (sizeof(sskipnode_t) + sizeof(uint64_t) * (node)->level + (node)->key_len)
+#define SSL_NODEPOSITION(ssl, node)     \
+    ((uint64_t)((void*)(node) - (ssl)->index->mapped))
 
 #endif // __STD_SKIPLIST_H
