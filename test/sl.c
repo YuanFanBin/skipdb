@@ -181,7 +181,6 @@ void benchmarkrand() {
     }
 
     // TEST get
-    if (0)
     {
         uint64_t value = 0;
         gettimeofday(&start, NULL);

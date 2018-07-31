@@ -547,19 +547,21 @@ static status_t notify_btree_split(skiplist_t* sl) {
         return _status;
     }
     btree_split_cb(sl->db->btree, ostr, lstr, sl->split->left, rstr, sl->split->right);
-    char prefix[7];
+    char* prefix;
     uint64_t _offsets[] = {};
     sl_wrlock(sl->split->left, _offsets, 0);
     sl->split->left->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(sl->db, prefix);
+    prefix = skipdb_get_next_filename(sl->db);
     sl_rename(sl->split->left, prefix);
+    free(prefix);
     sl_unlock(sl->split->left, _offsets, 0);
     sl->split->left = NULL;
 
     sl_wrlock(sl->split->right, _offsets, 0);
     sl->split->right->state = SKIPLIST_STATE_NORMAL;
-    skipdb_get_next_filename(sl->db, prefix);
+    prefix = skipdb_get_next_filename(sl->db);
     sl_rename(sl->split->right, prefix);
+    free(prefix);
     sl_unlock(sl->split->right, _offsets, 0);
     sl->split->right = NULL;
 
