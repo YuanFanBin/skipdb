@@ -713,7 +713,7 @@ void dump_node(void *n, int level) {
     }
 }
 
-void btree_split_cb_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
+void btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
     if (bt== NULL) {
         return;
     }
