@@ -74,6 +74,9 @@ void test_get(const char* key) {
         log_fatal("%s", s.errmsg);
     }
     s = sl_get(sl, key, strlen(key), &value);
+    if (s.code == STATUS_SKIPLIST_KEY_NOTFOUND) {
+        log_fatal("'%s' not found", key);
+    }
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
