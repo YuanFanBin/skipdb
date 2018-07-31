@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <skipdb.h>
 
 #include "defrag.h"
 #include "skiplist.h"
