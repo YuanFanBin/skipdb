@@ -312,6 +312,9 @@ static void* run_skipsplit(void* arg) {
         return NULL;
     }
     datanode_t* ldnode = sl_get_datanode(sl->split->left, lmnode->offset);
+    char* key = (char*)malloc(sizeof(char) * ldnode->size);
+    memcpy(key, ldnode->data, ldnode->size);
+    size_t size = ldnode->size;
     sskipnode_t* ssnode = SSL_NODEHEAD(sl->split->redolog);
     while (1) {
         sskipnode_t* next = SSL_NODE(sl->split->redolog, ssnode->forwards[-1]);
@@ -319,7 +322,7 @@ static void* run_skipsplit(void* arg) {
             break;
         }
         skiplist_t* seleted = NULL;
-        switch (compare(next->key, next->key_len, ldnode->data, ldnode->size)) {
+        switch (compare(next->key, next->key_len, key, size)) {
             case 1:
                 seleted = sl->split->right;
                 break;
@@ -333,6 +336,7 @@ static void* run_skipsplit(void* arg) {
         }
         ssnode = next;
     }
+    free(key);
     ssl_destroy(sl->split->redolog);
     sl->split->redolog = NULL;
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
