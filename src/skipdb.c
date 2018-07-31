@@ -134,14 +134,14 @@ status_t skipdb_first(skipdb_t *db) {
     status_t st = {0};
     const skipdb_option_t *option = skipdb_get_option(db);
 
-    char filename[SKIPDB_FILENAME_MAX_LEN] = {0};
-    skipdb_get_next_filename(db, filename);
+    char *filename = skipdb_get_next_filename(db);
 
     skiplist_t *sl = NULL;
     st = sl_open(db, filename, option->skiplist_p, &sl);
     if (st.code != 0) {
         return st;
     }
+    free(filename);
 
     void *key = NULL;
     size_t key_len = 0;
@@ -288,7 +288,7 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
 char *skipdb_get_next_filename(skipdb_t *db) {
     char *data = malloc(strlen(db->path) + SKIPDB_FILENAME_MAX_LEN + 2);
     // NOTE: %06d 和 SKIPDB_FILENAME_MAX_LEN 相关
-    snprintf(data, strlen(db->path) + SKIPDB_FILENAME_MAX_LEN, "%s\\%06d", db->path, ++db->file_max_index);
+    snprintf(data, strlen(db->path) + SKIPDB_FILENAME_MAX_LEN, "%s/%06d", db->path, ++db->file_max_index);
     return data;
 }
 
