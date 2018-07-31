@@ -129,6 +129,11 @@ static inline void free_node(void *node, int level) {
     free_inode(node);
 }
 
+static inline void free_key(key_type key) {
+    free(key.data);
+}
+
+
 static void split_leaf_node(btree_t *bt, btree_fnode_t *leaf, key_type *_newkey, void **_newleaf) {
     int i;
     unsigned int mid = (leaf->slotuse >> 1);
@@ -145,8 +150,8 @@ static void split_leaf_node(btree_t *bt, btree_fnode_t *leaf, key_type *_newkey,
         newleaf->keyslots[i - mid] = leaf->keyslots[i];
         newleaf->dataslots[i - mid] = leaf->dataslots[i];
     }
-    leaf->slotuse = mid;
     newleaf->slotuse = leaf->slotuse - mid;
+    leaf->slotuse = mid;
 
     leaf->nextleaf = newleaf;
     newleaf->prevleaf = leaf;
