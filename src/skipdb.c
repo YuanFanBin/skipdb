@@ -87,7 +87,7 @@ inline const skipdb_option_t *skipdb_get_option(skipdb_t *db) {
 status_t skipdb_init(skipdb_t *db) {
     status_t st = {0};;
     slice_pvoid spc = {0};
-    int max_index = 1;
+    int max_index = 0;
     const skipdb_option_t *option = skipdb_get_option(db);
 
     st = find_sl_names(db->path, &spc);
@@ -106,11 +106,16 @@ status_t skipdb_init(skipdb_t *db) {
             max_index = ix;
         }
 
+        size_t filename_len = sizeof(char) * (strlen(db->path) + strlen(spc_get(spc, i)) + 2);
+        char *filename = malloc(filename_len);
+        snprintf(filename, filename_len, "%s/%s", db->path, (char *) spc_get(spc, i));
+
         skiplist_t *sl = NULL;
-        st = sl_open(db, spc_get(spc, i), option->skiplist_p, &sl);
+        st = sl_open(db, filename, option->skiplist_p, &sl);
         if (st.code != 0) {
             return st;
         }
+        free(filename);
 
         void *key = NULL;
         size_t key_len = 0;
@@ -286,9 +291,10 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
 
 // need free
 char *skipdb_get_next_filename(skipdb_t *db) {
-    char *data = malloc(strlen(db->path) + SKIPDB_FILENAME_MAX_LEN + 2);
+    size_t data_len = strlen(db->path) + SKIPDB_FILENAME_MAX_LEN + 2;
+    char *data = malloc(sizeof(char) * data_len);
     // NOTE: %06d 和 SKIPDB_FILENAME_MAX_LEN 相关
-    snprintf(data, strlen(db->path) + SKIPDB_FILENAME_MAX_LEN, "%s/%06d", db->path, ++db->file_max_index);
+    snprintf(data, data_len, "%s/%06d", db->path, ++db->file_max_index);
     return data;
 }
 
