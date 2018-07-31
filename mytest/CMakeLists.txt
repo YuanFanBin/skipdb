@@ -16,3 +16,4 @@ ADD_EXECUTABLE (mytest test.c ${DIR_SRCS}
         ../include/std_skiplist.h
         ../include/util.h
         )
+TARGET_LINK_LIBRARIES (mytest pthread)

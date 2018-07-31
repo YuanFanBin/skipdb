@@ -30,7 +30,7 @@ void test_skip() {
     skiplist_t* sl = NULL;
     uint64_t value = 0;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -51,7 +51,7 @@ void test_put(const char* key, uint64_t value) {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -69,7 +69,7 @@ void test_get(const char* key) {
     uint64_t value = 0;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -82,7 +82,7 @@ void test_del(const char* key) {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -97,7 +97,7 @@ void test_maxkey() {
     void* key = NULL;
     size_t size = 0;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -114,7 +114,7 @@ void test_print(int isprintnode) {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -126,7 +126,7 @@ void test_print_keys() {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -138,7 +138,7 @@ void test_print_rkeys() {
     status_t s;
     skiplist_t* sl = NULL;
 
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -153,7 +153,7 @@ void benchmarkrand() {
     struct timeval start, stop;
 
     // TEST put
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
@@ -181,6 +181,7 @@ void benchmarkrand() {
     }
 
     // TEST get
+    if (0)
     {
         uint64_t value = 0;
         gettimeofday(&start, NULL);
@@ -224,7 +225,7 @@ void benchmarkseq() {
     struct timeval start, stop;
 
     // TEST put
-    s = sl_open(opt.prefix, opt.p, &sl);
+    s = sl_open(NULL, opt.prefix, opt.p, &sl);
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }

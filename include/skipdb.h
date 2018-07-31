@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include "status.h"
 #include "defrag.h"
-#include "skiplist.h"
 #include "btree.h"
 
 typedef struct {
@@ -15,11 +14,13 @@ typedef struct {
 
 typedef struct {
     int close;
+    int file_max_index;
     const char *path;
     skipdb_option_t default_option;
     skipdb_option_t *option;
     btree_t *btree;
 } skipdb_t;
+
 
 status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option);
 status_t skipdb_close(skipdb_t *db);
@@ -32,6 +33,7 @@ status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
 status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len);
 
 // private
+void skipdb_get_next_filename(skipdb_t *db, char name[7]);
 const skipdb_option_t *skipdb_get_option(skipdb_t *db);
 
 typedef struct {
@@ -41,6 +43,8 @@ typedef struct {
 skiplist_iter_t *skiplist_iter_new(skipdb_t *db);
 void skiplist_iter_free(skiplist_iter_t *iter);
 
-skiplist_t *skiplist_iter_next(skiplist_iter_t *iter);
+#include "skiplist.h"
+
+struct skiplist_s *skiplist_iter_next(skiplist_iter_t *iter);
 
 #endif //SKIPDB_SKIPDB_H

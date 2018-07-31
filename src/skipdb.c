@@ -87,6 +87,7 @@ inline const skipdb_option_t *skipdb_get_option(skipdb_t *db) {
 status_t skipdb_init(skipdb_t *db) {
     status_t st = {0};;
     slice_pvoid spc = {0};
+    int max_index = 0;
     const skipdb_option_t *option = skipdb_get_option(db);
 
     st = find_sl_names(db->path, &spc);
@@ -96,8 +97,17 @@ status_t skipdb_init(skipdb_t *db) {
 
     size_t names_len = spc_len(spc);
     for (size_t i = 0; i < names_len; ++i) {
+        // 获取下一个最大 file_index
+        int ix = atoi(spc_get(spc, i));
+        if (ix == 0) {
+            return (st.code = STATUS_SKIPDB_FILENAME_ERROR, st);
+        }
+        if (max_index < ix) {
+            max_index = ix;
+        }
+
         skiplist_t *sl = NULL;
-        st = sl_open(spc_get(spc, i), option->skiplist_p, &sl);
+        st = sl_open(db, spc_get(spc, i), option->skiplist_p, &sl);
         if (st.code != 0) {
             return st;
         }
@@ -114,6 +124,7 @@ status_t skipdb_init(skipdb_t *db) {
             return (st.code = STATUS_SKIPDB_BTREE_FAILED, st);
         }
     }
+    db->file_max_index = max_index;
 
     sl_names_free(spc);
     spc_free(spc);
@@ -124,6 +135,7 @@ status_t skipdb_open(const char *path, skipdb_t **p_db, skipdb_option_t *option)
     skipdb_t *db = NULL;
 
     db = malloc(sizeof(skipdb_t));
+    db->file_max_index = 1;
     db->path = path;
     db->default_option.skiplist_p = 0.25;
     db->default_option.btree_degree = 4;
@@ -233,6 +245,10 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
     }
 
     return st;
+}
+
+void skipdb_get_next_filename(skipdb_t *db, char name[7]) {
+    snprintf(name, 7, "%06d", ++db->file_max_index);
 }
 
 // ================ skiplist_iter ================

@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "defrag.h"
 #include "skiplist.h"
@@ -287,7 +288,7 @@ void move_data(skiplist_t *sl, data_block_t *ebs, uint64_t ebs_size, uint64_t da
 void *defrag_start(void *arg) {
     skipdb_t *db = (skipdb_t *) arg;
     defrag_option_t option = skipdb_get_option(db)->defrag_option;
-    timespec_t ts_interval = {option.check_interval, 0};
+    struct timespec ts_interval = {option.check_interval, 0};
 
     while (true) {
         if (db->close) {
