@@ -73,7 +73,10 @@ void test_get(const char* key) {
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
-    sl_get(sl, key, strlen(key), &value);
+    s = sl_get(sl, key, strlen(key), &value);
+    if (s.code != 0) {
+        log_fatal("%s", s.errmsg);
+    }
     log_info("skiplist.sl_get(%s): %ld\n", key, value);
     sl_close(sl);
 }
@@ -204,7 +207,7 @@ void benchmarkrand() {
         sl_sync(sl);
         gettimeofday(&stop, NULL);
         e = elapse(stop, start);
-        log_info("%s: syncdb(%ud * %dB key) %fs\n",
+        log_info("%s: syncdb(%u * %dB key) %fs\n",
             __FUNCTION__,
             opt.count,
             KEY_LEN - 1,

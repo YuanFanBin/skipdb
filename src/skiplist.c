@@ -762,7 +762,8 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
         if (snode != NULL) {
             if ((snode->flag & SSL_NODE_DELETED) == SSL_NODE_DELETED) {
                 _status.code = STATUS_SKIPLIST_KEY_NOTFOUND;
-                return sl_unlock(sl, _offsets, 0);
+                sl_unlock(sl, _offsets, 0);
+                return _status;
             }
             *value = snode->value;
             return sl_unlock(sl, _offsets, 0);
@@ -789,7 +790,8 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
         }
     }
     _status.code = STATUS_SKIPLIST_KEY_NOTFOUND;
-    return sl_unlock(sl, _offsets, 0);
+    sl_unlock(sl, _offsets, 0);
+    return _status;
 }
 
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
