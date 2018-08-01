@@ -67,11 +67,12 @@ void sl_print(skiplist_t* sl, FILE* stream, const char* prefix, int isprintnode)
     // skiplist
     curr = METANODEHEAD(sl);
     fprintf(stream, "%s\033[31m[ skiplist ]\033[0m\n", prefix);
-    fprintf(stream, "%sstate = %d, metaname = %s, dataname = %s\n",
+    fprintf(stream, "%sstate = %d, prefix = %s, metaname = %s, dataname = %s\n",
             prefix,
             sl->state,
-            sl->metaname,
-            sl->dataname);
+            sl->names->prefix,
+            sl->names->meta,
+            sl->names->data);
 
     // skiplist->meta
     fprintf(stream, "%s\033[31m[ skiplist->meta ]\033[0m\n", prefix);

@@ -55,7 +55,7 @@ void test_put(const char* key, uint64_t value) {
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
-    sl_put(sl, key, strlen(key), value);
+    s = sl_put(sl, key, strlen(key), value);
     if (s.code != 0) {
         log_error("put failed: %s\n", s.errmsg);
     } else {

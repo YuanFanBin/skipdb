@@ -2,6 +2,64 @@
 #include "../include/btree.h"
 #include <errno.h>
 
+static names_t* _sl_names(const char* prefix) {
+    int n = 0;
+    int prefix_len = strlen(prefix);
+
+    names_t* ns = (names_t*)malloc(sizeof(names_t));
+
+    n = prefix_len + 1;
+    ns->prefix = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->prefix, n, "%s", prefix);
+
+    n = prefix_len + sizeof(META_SUFFIX) + 1;
+    ns->meta = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->meta , n, "%s%s", prefix, META_SUFFIX);
+
+    n = prefix_len + sizeof(DATA_SUFFIX) + 1;
+    ns->data = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->data, n, "%s%s", prefix, DATA_SUFFIX);
+
+    n = prefix_len + sizeof(SPLIT_REDOLOG_SUFFIX) + 1;
+    ns->redo = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->redo, n, "%s%s", prefix, SPLIT_REDOLOG_SUFFIX);
+
+    n = prefix_len + sizeof(SPLIT_LEFT_SUFFIX) + 1;
+    ns->left_prefix = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->left_prefix, n, "%s%s", prefix, SPLIT_LEFT_SUFFIX);
+
+    n = prefix_len + sizeof(SPLIT_RIGHT_SUFFIX) + 1;
+    ns->right_prefix = (char*)malloc(sizeof(char) * n);
+    snprintf(ns->right_prefix, n, "%s%s", prefix, SPLIT_RIGHT_SUFFIX);
+
+    return ns;
+}
+
+static void _sl_names_free(names_t* ns) {
+    if (ns == NULL) {
+        return;
+    }
+    if (ns->prefix != NULL) {
+        free(ns->prefix);
+    }
+    if (ns->meta != NULL) {
+        free(ns->meta);
+    }
+    if (ns->data != NULL) {
+        free(ns->data);
+    }
+    if (ns->redo != NULL) {
+        free(ns->redo);
+    }
+    if (ns->left_prefix != NULL) {
+        free(ns->left_prefix);
+    }
+    if (ns->right_prefix != NULL) {
+        free(ns->right_prefix);
+    }
+    free(ns);
+}
+
 inline datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset) {
     return (datanode_t*)(sl->data->mapped + offset);
 }
@@ -93,36 +151,61 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
 
 static status_t _skipsplit(skiplist_t* sl);
 
-static status_t loadredolog(skiplist_t* sl) {
+static status_t loadsplit(skiplist_t* sl) {
     int err;
     status_t _status = { .code = 0 };
-
-    int n = strlen(sl->prefix) + sizeof(SPLIT_REDOLOG_SUFFIX) + 1;
-    char* redolog_name = (char*)malloc(sizeof(char) * n);
-    snprintf(redolog_name, n, "%s%s", sl->prefix, SPLIT_REDOLOG_SUFFIX);
-    if (access(redolog_name, F_OK) != 0) {
-        free(redolog_name);
-        return _status;
-    }
     sl->split = (skipsplit_t*)malloc(sizeof(skipsplit_t));
-    if (sl->split == NULL) {
-        free(redolog_name);
-        return statusfuncnotok(_status, errno, "malloc");
-    }
-    _status = _skipsplit(sl);
-    free(redolog_name);
-    if (_status.code != 0) {
-        if (sl->split->redolog != NULL) {
-            ssl_close(sl->split->redolog);
-            sl->split->redolog = NULL;
+    sl->split->redolog = NULL;
+    sl->split->left = NULL;
+    sl->split->right = NULL;
+
+    if (access(sl->names->redo, F_OK) == 0) {
+        _status = _skipsplit(sl);
+        if (_status.code != 0) {
+            if (sl->split->redolog != NULL) {
+                ssl_close(sl->split->redolog);
+                sl->split->redolog = NULL;
+            }
+            free(sl->split);
+            return _status;
         }
-        free(sl->split);
+        if ((err = pthread_join(sl->split_id, NULL)) != 0) {
+            return statusfuncnotok(_status, err, "pthread_join");
+        }
         return _status;
     }
-    if ((err = pthread_join(sl->split_id, NULL)) != 0) {
-        return statusfuncnotok(_status, err, "pthread_join");
+    names_t* lns = _sl_names(sl->names->left_prefix);
+    names_t* rns = _sl_names(sl->names->right_prefix);
+    if (access(lns->meta, F_OK) == 0 && access(lns->data, F_OK == 0) && access(rns->meta, F_OK) == 0 && access(rns->data, F_OK == 0)) {
+        _sl_names_free(lns);
+        _sl_names_free(rns);
+        _status = sl_open(sl->db, sl->names->left_prefix, sl->meta->p, &sl->split->left);
+        if (_status.code != 0) {
+            free(sl->split);
+            return _status;
+        }
+        _status = sl_open(sl->db, sl->names->right_prefix, sl->meta->p, &sl->split->right);
+        if (_status.code != 0) {
+            sl_close(sl->split->left);
+            free(sl->split);
+            return _status;
+        }
+        sl->state = SKIPLIST_STATE_SPLIT_DONE;
+        return _status;
     }
+    free(sl->split);
+    sl->split = NULL;
     return _status;
+}
+
+static void _sl_reset_maxkey(skiplist_t* sl) {
+    char* maxkey = NULL;
+    if (sl->maxkey != NULL) {
+        free(sl->maxkey);
+    }
+    sl_get_maxkey(sl, (void**)&maxkey, &sl->maxkey_len);
+    sl->maxkey = (char*)malloc(sizeof(char) * sl->maxkey_len);
+    memcpy(sl->maxkey, maxkey, sl->maxkey_len);
 }
 
 status_t _sl_load(skiplist_t* sl) {
@@ -132,7 +215,7 @@ status_t _sl_load(skiplist_t* sl) {
 
     // load meta
     {
-        _status = ommap(sl->metaname, &mapcap, &mapped);
+        _status = ommap(sl->names->meta, &mapcap, &mapped);
         if (_status.code != 0) {
             munmap(mapped, mapcap);
             return _status;
@@ -141,13 +224,14 @@ status_t _sl_load(skiplist_t* sl) {
     }
     // load data
     {
-        _status = ommap(sl->dataname, &mapcap, &mapped);
+        _status = ommap(sl->names->data, &mapcap, &mapped);
         if (_status.code != 0) {
             munmap(mapped, mapcap);
             return _status;
         }
         loaddata(sl, mapped, mapcap);
     }
+    _sl_reset_maxkey(sl);
     return _status;
 }
 
@@ -157,7 +241,7 @@ status_t _sl_create(skiplist_t* sl, float p) {
 
     // create meta
     {
-        _status = cmmap(sl->metaname, DEFAULT_METAFILE_SIZE, &mapped);
+        _status = cmmap(sl->names->meta, DEFAULT_METAFILE_SIZE, &mapped);
         if (_status.code != 0) {
             munmap(mapped, DEFAULT_METAFILE_SIZE);
             return _status;
@@ -166,7 +250,7 @@ status_t _sl_create(skiplist_t* sl, float p) {
     }
     // create data
     {
-        _status = cmmap(sl->dataname, DEFAULT_DATAFILE_SIZE, &mapped);
+        _status = cmmap(sl->names->data, DEFAULT_DATAFILE_SIZE, &mapped);
         if (_status.code != 0) {
             munmap(mapped, DEFAULT_DATAFILE_SIZE);
             return _status;
@@ -192,25 +276,16 @@ status_t _sl_new(skipdb_t* db, const char* prefix, skiplist_t** sl) {
         (*sl)->metafree[i] = NULL;
     }
     (*sl)->datafree = NULL;
-    (*sl)->prefix = NULL;
-    (*sl)->metaname = NULL;
-    (*sl)->dataname = NULL;
     (*sl)->state = SKIPLIST_STATE_NORMAL;
     (*sl)->db = db;
+    (*sl)->names = _sl_names(prefix);
+    (*sl)->maxkey = (char*)malloc(sizeof(char));
+    (*sl)->maxkey[0] = '\0';
+    (*sl)->maxkey_len = 1;
 
     if ((err = pthread_rwlock_init(&(*sl)->rwlock, NULL)) != 0) {
         return statusfuncnotok(_status, err, "pthread_rwlock_init");
     }
-    // open meta/data file
-    size_t prefix_len = strlen(prefix);
-    (*sl)->prefix = (char*)malloc(sizeof(char)*(prefix_len + 1));
-    snprintf((*sl)->prefix, prefix_len + 1, "%s", prefix);
-    n = prefix_len + sizeof(META_SUFFIX) + 1;
-    (*sl)->metaname = (char*)malloc(sizeof(char) * n);
-    snprintf((*sl)->metaname, n, "%s%s", prefix, META_SUFFIX);
-    n = prefix_len + sizeof(DATA_SUFFIX) + 1;
-    (*sl)->dataname = (char*)malloc(sizeof(char) * n);
-    snprintf((*sl)->dataname, n, "%s%s", prefix, DATA_SUFFIX);
     return _status;
 }
 
@@ -237,21 +312,21 @@ status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
         sl_close(*sl);
         return _status;
     }
-    int ret1 = access((*sl)->metaname, F_OK);
-    int ret2 = access((*sl)->dataname, F_OK);
+    int ret1 = access((*sl)->names->meta, F_OK);
+    int ret2 = access((*sl)->names->data, F_OK);
     if (ret1 == 0 && ret2 == 0) {
         _status = _sl_load(*sl);
     } else if (ret1 != 0 && ret2 != 0) {
         _status = _sl_create(*sl, p);
     } else {
         sl_close(*sl);
-        return statusnotok2(_status, "%s or %s not eixst", (*sl)->metaname, (*sl)->dataname);
+        return statusnotok2(_status, "%s or %s not eixst", (*sl)->names->meta, (*sl)->names->data);
     }
     if (_status.code != 0) {
         sl_close(*sl);
         return _status;
     }
-    _status = loadredolog(*sl);
+    _status = loadsplit(*sl);
     if (_status.code != 0) {
         sl_close(*sl);
         return _status;
@@ -337,7 +412,11 @@ static void* run_skipsplit(void* arg) {
         ssnode = next;
     }
     free(key);
+    _sl_reset_maxkey(sl->split->left);
+    _sl_reset_maxkey(sl->split->right);
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
+    ssl_destroy(sl->split->redolog);
+    sl->split->redolog = NULL;
     sl_unlock(sl, _offsets, 0);
     pthread_exit((void *)0);
     return NULL;
@@ -345,44 +424,18 @@ static void* run_skipsplit(void* arg) {
 
 static status_t _skipsplit(skiplist_t* sl) {
     int err;
-    status_t _status = { .code = 0 };
-    char* redolog_name = NULL;
-    char* left_name = NULL;
-    char* right_name = NULL;
+    status_t _status;
 
-    {
-        int n;
-        int prefix_n = strlen(sl->prefix);
-        // redolog name
-        n = prefix_n + sizeof(SPLIT_REDOLOG_SUFFIX) + 1;
-        redolog_name = (char*)malloc(sizeof(char) * n);
-        snprintf(redolog_name, n, "%s%s", sl->prefix, SPLIT_REDOLOG_SUFFIX);
-        // left name
-        n = prefix_n + sizeof(SPLIT_LEFT_SUFFIX) + 1;
-        left_name = (char*)malloc(sizeof(char) * n);
-        snprintf(left_name, n, "%s%s", sl->prefix, SPLIT_LEFT_SUFFIX);
-        // right name
-        n = prefix_n + sizeof(SPLIT_RIGHT_SUFFIX) + 1;
-        right_name = (char*)malloc(sizeof(char) * n);
-        snprintf(right_name, n, "%s%s", sl->prefix, SPLIT_RIGHT_SUFFIX);
-    }
-
-    _status = ssl_open(redolog_name, sl->meta->p, &sl->split->redolog);
-    free(redolog_name);
+    _status = ssl_open(sl->names->redo, sl->meta->p, &sl->split->redolog);
     if (_status.code != 0) {
-        free(left_name);
-        free(right_name);
         return _status;
     }
-    _status = sl_create(sl->db, left_name, sl->meta->p, &sl->split->left);
-    free(left_name);
+    _status = sl_create(sl->db, sl->names->left_prefix, sl->meta->p, &sl->split->left);
     if (_status.code != 0) {
-        free(right_name);
         return _status;
     }
     sl->split->left->state = SKIPLIST_STATE_SPLITER;
-    _status = sl_create(sl->db, right_name, sl->meta->p, &sl->split->right);
-    free(right_name);
+    _status = sl_create(sl->db, sl->names->right_prefix, sl->meta->p, &sl->split->right);
     if (_status.code != 0) {
         sl_destroy(sl->split->left);
         return _status;
@@ -442,7 +495,7 @@ static status_t expandmetafile(skiplist_t* sl) {
     void* newmapped = NULL;
     status_t _status = { .code = 0 };
 
-    if ((fd = open(sl->metaname, O_RDWR)) < 0) {
+    if ((fd = open(sl->names->meta, O_RDWR)) < 0) {
         return statusfuncnotok(_status, errno, "open");
     }
     if (sl->meta->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
@@ -466,7 +519,7 @@ static status_t expanddatafile(skiplist_t* sl) {
     void* newmapped = NULL;
     status_t _status = { .code = 0 };
 
-    if ((fd = open(sl->dataname, O_RDWR)) < 0) {
+    if ((fd = open(sl->names->data, O_RDWR)) < 0) {
         return statusfuncnotok(_status, errno, "open");
     }
     if (sl->data->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
@@ -508,25 +561,11 @@ static status_t skipsplit_and_put(skiplist_t* sl, const void* key, size_t key_le
 }
 
 static void sl_rename(skiplist_t *sl, const char* prefix) {
-    int n = 0;
-    size_t prefix_len = strlen(prefix);
-
-    sl->prefix = (char*)malloc(sizeof(char)*(prefix_len + 1));
-    snprintf(sl->prefix, prefix_len + 1, "%s", prefix);
-
-    n = prefix_len + sizeof(META_SUFFIX) + 1;
-    char* metaname = (char*)malloc(sizeof(char) * n);
-    snprintf(metaname, n, "%s%s", prefix, META_SUFFIX);
-    rename(sl->metaname, metaname);
-    free(sl->metaname);
-    sl->metaname = metaname;
-
-    n = prefix_len + sizeof(DATA_SUFFIX) + 1;
-    char* dataname = (char*)malloc(sizeof(char) * n);
-    snprintf(dataname, n, "%s%s", prefix, META_SUFFIX);
-    rename(sl->dataname, dataname);
-    free(sl->dataname);
-    sl->dataname = dataname;
+    names_t* ns = _sl_names(prefix);
+    rename(sl->names->meta, ns->meta);
+    rename(sl->names->data, ns->data);
+    _sl_names_free(sl->names);
+    sl->names = ns;
 }
 
 static status_t notify_btree_split(skiplist_t* sl) {
@@ -568,9 +607,6 @@ static status_t notify_btree_split(skiplist_t* sl) {
     free(prefix);
     sl_unlock(sl->split->right, _offsets, 0);
     sl->split->right = NULL;
-
-    ssl_destroy(sl->split->redolog);
-    sl->split->redolog = NULL;
 
     return _status;
 }
@@ -851,7 +887,6 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
             break; // go to next level to find update[level-1]
         }
     }
-    // int btree_adjust_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1);
     if (mnode == NULL) {
         return sl_unlock(sl, _offsets, 0);
     }
@@ -875,7 +910,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     return sl_unlock(sl, _offsets, 0);
 }
 
-status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
+status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     status_t _status = { .code = 0 };
     void *k1 = NULL, *k2 = NULL;
     size_t l1 = 0, l2 = 0;
@@ -930,6 +965,16 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     return sl_unlock(sl, _offsets, 0);
 }
 
+status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
+    status_t _status = _sl_get_maxkey(sl, key, size);
+    if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+        *key = sl->maxkey;
+        *size = sl->maxkey_len;
+        _status.code = 0;
+    }
+    return _status;
+}
+
 status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     int err;
     status_t _status = { .code = 0 };
@@ -976,7 +1021,7 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     if (sl == NULL) {
         return _status;
     }
-    if (sl->split != NULL) {
+    if (sl->split != NULL && sl->state != SKIPLIST_STATE_SPLIT_DONE) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
             return statusfuncnotok(_status, err, "pthread_join");
         }
@@ -992,19 +1037,17 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
             return statusfuncnotok(_status, errno, "munmap");
         }
     }
-    if (sl->metaname != NULL) {
+    if (sl->names != NULL) {
         if (is_remove_file) {
-            remove(sl->metaname);
+            remove(sl->names->meta);
         }
-        free(sl->metaname);
-        sl->metaname = NULL;
+        if (is_remove_file) {
+            remove(sl->names->data);
+        }
+        _sl_names_free(sl->names);
     }
-    if (sl->dataname != NULL) {
-        if (is_remove_file) {
-            remove(sl->dataname);
-        }
-        free(sl->dataname);
-        sl->dataname = NULL;
+    if (sl->maxkey != NULL) {
+        free(sl->maxkey);
     }
     for (int i = 0; i < SKIPLIST_MAXLEVEL; i++) {
         if (sl->metafree[i] != NULL) {
@@ -1018,24 +1061,24 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
         return statusfuncnotok(_status, err, "pthread_rwlock_destroy");
     }
     if (sl->split != NULL) {
+        if (sl->split->left != NULL) {
+            _status = _sl_close(sl->split->left, sl->split->redolog != NULL ? 1 : 0);
+            if (_status.code != 0) {
+                return _status;
+            }
+        }
+        if (sl->split->right != NULL) {
+            _status = _sl_close(sl->split->right, sl->split->redolog != NULL ? 1 : 0);
+            if (_status.code != 0) {
+                return _status;
+            }
+        }
         if (sl->split->redolog != NULL) {
             if (is_remove_file) {
                 _status = ssl_destroy(sl->split->redolog);
             } else {
                 _status = ssl_close(sl->split->redolog);
             }
-            if (_status.code != 0) {
-                return _status;
-            }
-        }
-        if (sl->split->left != NULL) {
-            _status = _sl_close(sl->split->left, 1);
-            if (_status.code != 0) {
-                return _status;
-            }
-        }
-        if (sl->split->right != NULL) {
-            _status = _sl_close(sl->split->right, 1);
             if (_status.code != 0) {
                 return _status;
             }
