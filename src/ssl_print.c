@@ -7,7 +7,7 @@ static void printnode(sskiplist_t* ssl, FILE* stream, const char* prefix, sskipn
     if (node == NULL) {
         return;
     }
-    fprintf(stream, "%s[\033[36m%8llu\033[0m]: level = %d, flag = 0x%02x, backward = %llu, value = %llu, forwards = [%llu",
+    fprintf(stream, "%s[\033[36m%8lu\033[0m]: level = %d, flag = 0x%02x, backward = %lu, value = %lu, forwards = [%lu",
         prefix,
         pos,
         node->level,
@@ -16,7 +16,7 @@ static void printnode(sskiplist_t* ssl, FILE* stream, const char* prefix, sskipn
         node->value,
         node->forwards[-1]);
     for (int i = -2; i > -node->level; --i) {
-        fprintf(stream, ", %llu", node->forwards[i]);
+        fprintf(stream, ", %lu", node->forwards[i]);
     }
     fprintf(stream, "], ");
     char* buff = (char*)malloc(sizeof(char*) * node->key_len + 1);
@@ -63,7 +63,7 @@ void ssl_print(sskiplist_t* ssl, FILE* stream, const char* prefix, int isprintno
     for (int i = 0; i < curr->level; ++i) {
         fprintf(stream, "%s[LEVEL %2d]: %d\n", prefix, i + 1, lvlcnt[i + 1]);
     }
-    fprintf(stream, "%s\033[34mcount = %d, p = %.2f, tail = %llu, mapsize = %lluB(%.2lfM), mapcap = %lluB(%.2lfM)\033[0m\n",
+    fprintf(stream, "%s\033[34mcount = %d, p = %.2f, tail = %lu, mapsize = %luB(%.2lfM), mapcap = %luB(%.2lfM)\033[0m\n",
             prefix,
             ssl->index->count,
             ssl->index->p,
