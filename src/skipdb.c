@@ -18,7 +18,7 @@ bool find_exists(slice_pvoid spc, char *value) {
     for (int i = 0; i < len; ++i) {
         char *value2 = spc_get(spc, (size_t) i);
 
-        if (strcpy(value2, value) == 0) {
+        if (strcmp(value2, value) == 0) {
             return true;
         }
     }
