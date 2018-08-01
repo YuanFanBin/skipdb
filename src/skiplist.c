@@ -976,7 +976,7 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         return _status;
     }
     metanode_t* mnode = METANODE(sl, sl->meta->tail);
-    if (mnode == NULL) {
+    if (mnode == NULL || ((mnode->flag & METANODE_HEAD) == METANODE_HEAD)) {
         _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
         sl_unlock(sl, _offsets, 0);
         return _status;
