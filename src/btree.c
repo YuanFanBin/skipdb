@@ -714,8 +714,7 @@ void dump_node(void *n, int level) {
     }
 }
 
-int
-btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
+int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
     BTREE_ASSERT(bt != NULL);
 
     if (btree_erase(bt, oldkey) != 0) {
@@ -771,4 +770,18 @@ btree_iter_t *btree_iter_next(btree_iter_t *it) {
 }
 
 void btree_destory(btree_t *bt) {
+}
+
+int btree_adjust_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1) {
+    BTREE_ASSERT(bt != NULL);
+
+    if (btree_erase(bt, oldkey) != 0) {
+        return -1;
+    }
+
+    if (btree_insert(bt, newkey1, value1) != 0) {
+        return -1;
+    }
+    return 0;
+
 }

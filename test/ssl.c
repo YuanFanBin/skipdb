@@ -36,7 +36,7 @@ void test_sskip() {
     ssl_put(ssl, "aa", 2, 6);
     ssl_put(ssl, "doy", 3, 7);
     ssl_get(ssl, "def", 3, &value);
-    printf("[\033[40;5m%s\033[0m] = %ld\n", "def", value);
+    printf("[\033[40;5m%s\033[0m] = %lu\n", "def", value);
 
     ssl_print(ssl, stdout, "", 1);
 
@@ -55,7 +55,7 @@ void test_put(const char* key, uint64_t value) {
     if (s.code != 0) {
         log_error("put failed: %s\n", s.errmsg);
     } else {
-        log_info("sskiplist.ssl_put(%s, %ld)\n", key, value);
+        log_info("sskiplist.ssl_put(%s, %lu)\n", key, value);
     }
     ssl_close(ssl);
 }
@@ -70,7 +70,7 @@ void test_get(const char* key) {
         log_fatal("%s", s.errmsg);
     }
     ssl_get(ssl, key, strlen(key), &value);
-    log_info("sskiplist.ssl_get(%s): %ld\n", key, value);
+    log_info("sskiplist.ssl_get(%s): %lu\n", key, value);
     ssl_close(ssl);
 }
 

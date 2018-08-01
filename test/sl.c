@@ -40,7 +40,7 @@ void test_skip() {
     sl_put(sl, "aa", 2, 6);
     sl_put(sl, "doy", 3, 7);
     sl_get(sl, "def", 3, &value);
-    printf("[\033[40;5m%s\033[0m] = %ld\n", "def", value);
+    printf("[\033[40;5m%s\033[0m] = %lu\n", "def", value);
 
     sl_print(sl, stdout, "", 1);
 
@@ -59,7 +59,7 @@ void test_put(const char* key, uint64_t value) {
     if (s.code != 0) {
         log_error("put failed: %s\n", s.errmsg);
     } else {
-        log_info("skiplist.sl_put(%s, %ld)\n", key, value);
+        log_info("skiplist.sl_put(%s, %lu)\n", key, value);
     }
     sl_close(sl);
 }
@@ -80,7 +80,7 @@ void test_get(const char* key) {
     if (s.code != 0) {
         log_fatal("%s", s.errmsg);
     }
-    log_info("skiplist.sl_get(%s): %ld\n", key, value);
+    log_info("skiplist.sl_get(%s): %lu\n", key, value);
     sl_close(sl);
 }
 
