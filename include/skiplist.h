@@ -81,19 +81,34 @@ struct skipsplit_s;
 
 #include "skipdb.h"
 
+// names_t 记录跳表所涉及的所有文件名及prefix
+typedef struct names_s {
+    char* prefix;
+    char* meta;
+    char* data;
+    char* redo;
+    char* left_prefix;
+    char* right_prefix;
+} names_t;
+
 typedef struct skiplist_s {
-    skipdb_t* db;
     pthread_rwlock_t rwlock;
+    int state;  // 跳表状态: SKIPLIST_STATE_XXXX
+
+    skipdb_t* db;
+
     skipmeta_t* meta;                    // 元数据跳表
     skipdata_t* data;                    // 数据跳表
     list_t* metafree[SKIPLIST_MAXLEVEL]; // 空闲元数据节点（仅存偏移量）
     list_t* datafree;                    // 空闲数据节点（仅存偏移量）
-    char* prefix;                        // 映射文件的文件名前缀
-    char* metaname;                      // 映射的元数据文件名
-    char* dataname;                      // 映射的数据文件名
+
+    names_t* names;
+
     struct skipsplit_s* split;           // 分裂跳表
-    int state;                           // 跳表状态: SKIPLIST_STATE_XXXX
     pthread_t split_id;
+
+    char* maxkey;                        // 跳表的最大key（仅在分裂时重置，非实时更新），默认'\0'
+    size_t maxkey_len;                   // maxkey 长度，默认1
 } skiplist_t;
 
 typedef struct skipsplit_s {
