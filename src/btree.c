@@ -267,7 +267,7 @@ static int btree_insert_descend(btree_t *bt,
     }
 }
 
-int btree_insert(btree_t *bt, key_type key, data_type value) {
+int btree_insert_unlock(btree_t *bt, key_type key, data_type value) {
     if (key.size == 0) {
         return 0;
     }
@@ -276,7 +276,6 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
     void *newchild = NULL;
     key_type newkey;
 
-    pthread_rwlock_wrlock(&(bt->rwlock));
     if (bt->root == NULL) {
         bt->root = allocate_leaf(2 * bt->degree - 1);
         bt->fhead = bt->root;
@@ -297,6 +296,14 @@ int btree_insert(btree_t *bt, key_type key, data_type value) {
         bt->root = newroot;
         bt->height++;
     }
+
+    return r;
+}
+
+
+int btree_insert(btree_t *bt, key_type key, data_type value) {
+    pthread_rwlock_wrlock(&(bt->rwlock));
+    int r = btree_insert_unlock(bt, key, value);
     pthread_rwlock_unlock(&(bt->rwlock));
 
     return r;
@@ -643,6 +650,15 @@ btree_result_t btree_erase_descend(btree_t *bt,
     }
 }
 
+int btree_erase_unlock(btree_t *bt, key_type key) {
+    if (!bt->root) return -1;
+
+    btree_result_t result = btree_erase_descend(bt, key, bt->root, bt->height - 1, NULL, NULL, NULL, NULL, NULL, 0);
+
+    return btree_result_has(result, btree_not_found);
+}
+
+
 int btree_erase(btree_t *bt, key_type key) {
     if (!bt->root) return -1;
 
@@ -728,7 +744,8 @@ void dump_node(void *n, int level) {
 int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1, key_type newkey2, data_type value2) {
     BTREE_ASSERT(bt != NULL);
 
-    if (btree_erase(bt, oldkey) != 0) {
+    pthread_rwlock_wrlock(&(bt->rwlock));
+    if (btree_erase_unlock(bt, oldkey) != 0) {
         return -1;
     }
     if (btree_insert(bt, newkey1, value1) != 0) {
@@ -737,6 +754,7 @@ int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type val
     if (btree_insert(bt, newkey2, value2) != 0) {
         return -1;
     }
+    pthread_rwlock_unlock(&(bt->rwlock));
     return 0;
 }
 
