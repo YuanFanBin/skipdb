@@ -49,15 +49,44 @@ void test_main() {
     status_t st;
     st = skipdb_open("./data", &db, NULL);
     if (st.code != 0) {
-        printf("code: %d, errmsg: %s\n", st.code, st.errmsg);
+        printf("skipdb_open, code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+
+    char *key = "hello, skipdb";
+    size_t key_len = strlen(key);
+    st = skipdb_put(db, key, key_len, 0xFFFFFFFFFFFF);
+    if (st.code != 0) {
+        printf("skipdb_put, code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+
+    uint64_t value = 0;
+    st = skipdb_get(db, key, key_len, &value);
+    if (st.code != 0) {
+        printf("skipdb_get, code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+    printf("value: %lx\n", value);
+
+    st = skipdb_del(db, key, key_len);
+    if (st.code != 0) {
+        printf("skipdb_del, code: %d, errmsg: %s\n", st.code, st.errmsg);
+        exit(-1);
+    }
+
+    st = skipdb_get(db, key, key_len, &value);
+    if (st.code != STATUS_SKIPLIST_KEY_NOTFOUND) {
+        printf("skipdb_get for del, code: %d, errmsg: %s, value: %lx\n", st.code, st.errmsg, value);
         exit(-1);
     }
 
     st = skipdb_close(db);
     if (st.code != 0) {
-        printf("code: %d, errmsg: %s\n", st.code, st.errmsg);
+        printf("skipdb_close, code: %d, errmsg: %s\n", st.code, st.errmsg);
         exit(-1);
     }
+    printf("PASS CONGRATULATIONS !!\n");
 }
 
 int main() {
