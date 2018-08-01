@@ -337,8 +337,6 @@ static void* run_skipsplit(void* arg) {
         ssnode = next;
     }
     free(key);
-    ssl_destroy(sl->split->redolog);
-    sl->split->redolog = NULL;
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
     sl_unlock(sl, _offsets, 0);
     pthread_exit((void *)0);
@@ -532,12 +530,14 @@ static void sl_rename(skiplist_t *sl, const char* prefix) {
 }
 
 static status_t notify_btree_split(skiplist_t* sl) {
+    char* prefix;
+    uint64_t _offsets[] = {};
     status_t _status = { .code = 0 };
+    btree_str_t ostr, lstr, rstr;
 
     if (sl->db == NULL) {
         return statusnotok0(_status, "skiplist->db is NULL");
     }
-    btree_str_t ostr, lstr, rstr;
     _status = sl_get_maxkey(sl, (void**)&ostr.data, &ostr.size);
     if (_status.code != 0) {
         return _status;
@@ -550,9 +550,9 @@ static status_t notify_btree_split(skiplist_t* sl) {
     if (_status.code != 0) {
         return _status;
     }
+
     btree_split_cb(sl->db->btree, ostr, lstr, sl->split->left, rstr, sl->split->right);
-    char* prefix;
-    uint64_t _offsets[] = {};
+
     sl_wrlock(sl->split->left, _offsets, 0);
     sl->split->left->state = SKIPLIST_STATE_NORMAL;
     prefix = skipdb_get_next_filename(sl->db);
@@ -623,7 +623,6 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
             return _status;
         }
         sl_unlock(sl, _offsets, 0);
-        // TODO:
         sl_destroy(sl);
         return _status;
     }
@@ -852,6 +851,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
             break; // go to next level to find update[level-1]
         }
     }
+    // int btree_adjust_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type value1);
     if (mnode == NULL) {
         return sl_unlock(sl, _offsets, 0);
     }
@@ -1029,13 +1029,13 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
             }
         }
         if (sl->split->left != NULL) {
-            _status = _sl_close(sl->split->left, is_remove_file);
+            _status = _sl_close(sl->split->left, 1);
             if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->right != NULL) {
-            _status = _sl_close(sl->split->right, is_remove_file);
+            _status = _sl_close(sl->split->right, 1);
             if (_status.code != 0) {
                 return _status;
             }
