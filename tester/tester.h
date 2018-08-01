@@ -29,4 +29,6 @@ typedef struct {
 
 int benchmark_put(test_t t);
 
+void panic(char *msg);
+
 #endif //TESTER_TESTER_H
