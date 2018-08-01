@@ -585,6 +585,8 @@ static void sl_rename(skiplist_t *sl, const char* prefix) {
     sl->names = ns;
 }
 
+status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size);
+
 static status_t notify_btree_split(skiplist_t* sl) {
     char* prefix;
     uint64_t _offsets[] = {};
@@ -594,9 +596,13 @@ static status_t notify_btree_split(skiplist_t* sl) {
     if (sl->db == NULL) {
         return statusnotok0(_status, "skiplist->db is NULL");
     }
-    _status = sl_get_maxkey(sl, (void**)&ostr.data, &ostr.size);
+    _status = _sl_get_maxkey(sl, (void**)&ostr.data, &ostr.size);
     if (_status.code != 0) {
-        return _status;
+        if (_status.code != STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
+            return _status;
+        }
+        ostr.data = sl->maxkey;
+        ostr.size = sl->maxkey_len;
     }
     _status = sl_get_maxkey(sl->split->left, (void**)&lstr.data, &lstr.size);
     if (_status.code != 0) {
@@ -936,16 +942,11 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     status_t _status = { .code = 0 };
     void *k1 = NULL, *k2 = NULL;
     size_t l1 = 0, l2 = 0;
-    uint64_t _offsets[] = {};
 
     if (sl == NULL) {
         return statusnotok0(_status, "skiplist is NULL");
     }
 
-    _status = sl_rdlock(sl, _offsets, 0);
-    if (_status.code != 0) {
-        return _status;
-    }
     if (sl->state == SKIPLIST_STATE_SPLITED) {
         status_t s1 = ssl_get_maxkey(sl->split->redolog, &k1, &l1);
         status_t s2 = sl_get_maxkey(sl, &k2, &l2);
@@ -964,7 +965,6 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
             *key = k1;
             *size = l1;
         }
-        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
@@ -972,28 +972,34 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
             _status = sl_get_maxkey(sl->split->left, key, size);
         }
-        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     metanode_t* mnode = METANODE(sl, sl->meta->tail);
     if (mnode == NULL || ((mnode->flag & METANODE_HEAD) == METANODE_HEAD)) {
         _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
-        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
     *key = dnode->data;
     *size = dnode->size;
-    return sl_unlock(sl, _offsets, 0);
+    return _status;
 }
 
 status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
-    status_t _status = _sl_get_maxkey(sl, key, size);
+    status_t _status;
+    uint64_t _offsets[] = {};
+
+    _status = sl_rdlock(sl, _offsets, 0);
+    if (_status.code != 0) {
+        return _status;
+    }
+    _status = _sl_get_maxkey(sl, key, size);
     if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
         *key = sl->maxkey;
         *size = sl->maxkey_len;
         _status.code = 0;
     }
+    sl_unlock(sl, _offsets, 0);
     return _status;
 }
 
