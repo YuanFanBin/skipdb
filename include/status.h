@@ -24,6 +24,6 @@ typedef struct {
 #define statusnotok2(s, msg, arg1, arg2)    \
     ((s).code = -1, snprintf((s).errmsg, ERRMSG_SIZE, (msg), (arg1), (arg2)), (s))
 
-#define statusfuncnotok(s, e, func) ((s).code = (e), snprintf((s).errmsg, ERRMSG_SIZE, "%s(%d): %s", func, e, strerror(e)), (s))
+#define statusfuncnotok(s, e, func) ((s).code = -1, snprintf((s).errmsg, ERRMSG_SIZE, "[%s:%d] %s(%d): %s", __FUNCTION__, __LINE__, func, e, strerror(e)), (s))
 
 #endif // __STATUS_H

@@ -334,13 +334,16 @@ status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
     return _status;
 }
 
+// run_skipsplit 将跳表分裂成 left/right 并将分裂过程中修改的新数据(redolog)同步至left/right
 static void* run_skipsplit(void* arg) {
     uint64_t _offsets[] = {};
     status_t _status = { .code = 0 };
     skiplist_t* sl = (skiplist_t*)arg;
+    // 按照当前跳表元素总数均等拆分（范围不一定相同）
     int lcount = sl->meta->count / 2;
     int rcount = sl->meta->count - lcount;
 
+    // 左半部分插入sl->split->left
     metanode_t* curr = METANODEHEAD(sl);
     for (int i = 0; i < lcount; ++i) {
         metanode_t* next = METANODE(sl, curr->forwards[0]);
@@ -351,6 +354,7 @@ static void* run_skipsplit(void* arg) {
         sl_put(sl->split->left, dnode->data, dnode->size, next->value);
         curr = next;
     }
+    // 右半部分插入sl->split->lright
     for (int i = 0; i < rcount; ++i) {
         metanode_t* next = METANODE(sl, curr->forwards[0]);
         if (next == NULL) {
@@ -361,6 +365,7 @@ static void* run_skipsplit(void* arg) {
         curr = next;
     }
 
+    // 锁定跳表，阻塞对sl->split->redolog操作
     sl_wrlock(sl, _offsets, 0);
     metanode_t* lmnode = METANODE(sl->split->left, sl->split->left->meta->tail);
     if (lmnode == NULL) {
@@ -386,11 +391,13 @@ static void* run_skipsplit(void* arg) {
         sl_unlock(sl, _offsets, 0);
         return NULL;
     }
+    // 获取sl->split->left最大key
     datanode_t* ldnode = sl_get_datanode(sl->split->left, lmnode->offset);
     char* key = (char*)malloc(sizeof(char) * ldnode->size);
     memcpy(key, ldnode->data, ldnode->size);
     size_t size = ldnode->size;
     sskipnode_t* ssnode = SSL_NODEHEAD(sl->split->redolog);
+    // 移动sl->split->redolog中key至sl->split->left, sl->split->right
     while (1) {
         sskipnode_t* next = SSL_NODE(sl->split->redolog, ssnode->forwards[-1]);
         if (next == NULL) {
@@ -398,23 +405,27 @@ static void* run_skipsplit(void* arg) {
         }
         skiplist_t* seleted = NULL;
         switch (compare(next->key, next->key_len, key, size)) {
-            case 1:
+            case 1: // > left max key 移动至 sl->split->right
                 seleted = sl->split->right;
                 break;
-            default:
+            default: // <= left max key 移动至 sl->split->left
                 seleted = sl->split->left;
         }
         if (next->flag == SSL_NODE_USED) {
             sl_put(seleted, next->key, next->key_len, next->value);
         } else if (next->flag == SSL_NODE_DELETED) {
+            // 将sl->split->redolog中惰性删除节点反应至left/right跳表中
             sl_del(seleted, next->key, next->key_len);
         }
         ssnode = next;
     }
     free(key);
+    // 重置left/right中max key
     _sl_reset_maxkey(sl->split->left);
     _sl_reset_maxkey(sl->split->right);
+    // 将状态标记为：跳表分裂完成
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
+    // 释放并移除sl->split->redolog
     ssl_destroy(sl->split->redolog);
     sl->split->redolog = NULL;
     sl_unlock(sl, _offsets, 0);
@@ -422,25 +433,30 @@ static void* run_skipsplit(void* arg) {
     return NULL;
 }
 
+// _skipsplit 创建出redolog/left/right跳表，新建跳表分裂线程去执行分裂，并更改跳表状态为SKIPLIST_STATE_SPLITED
 static status_t _skipsplit(skiplist_t* sl) {
     int err;
     status_t _status;
 
+    // 新建redolog，用于记录分裂过程中的修改操作
     _status = ssl_open(sl->names->redo, sl->meta->p, &sl->split->redolog);
     if (_status.code != 0) {
         return _status;
     }
+    // 创建分裂后跳表结构left
     _status = sl_create(sl->db, sl->names->left_prefix, sl->meta->p, &sl->split->left);
     if (_status.code != 0) {
         return _status;
     }
     sl->split->left->state = SKIPLIST_STATE_SPLITER;
+    // 创建分裂后跳表结构right
     _status = sl_create(sl->db, sl->names->right_prefix, sl->meta->p, &sl->split->right);
     if (_status.code != 0) {
         sl_destroy(sl->split->left);
         return _status;
     }
     sl->split->right->state = SKIPLIST_STATE_SPLITER;
+    // 启动分裂线程
     if ((err = pthread_create(&sl->split_id, NULL, run_skipsplit, sl)) != 0) {
         sl_destroy(sl->split->left);
         sl_destroy(sl->split->right);
@@ -538,6 +554,7 @@ static status_t expanddatafile(skiplist_t* sl) {
     return _status;
 }
 
+// skipsplit_and_put 启动分裂线程并将数据put至redolog中
 static status_t skipsplit_and_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
     status_t _status = { .code = 0 };
 
@@ -628,6 +645,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
     if (_status.code != 0) {
         return _status;
     }
+    // 若跳表是为被分裂者，则所有写操作写向redolog
     if (sl->state == SKIPLIST_STATE_SPLITED) {
         _status = ssl_put(sl->split->redolog, key, key_len, value);
         sl_unlock(sl, _offsets, 0);
@@ -663,12 +681,15 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         return _status;
     }
     uint16_t level = random_level(SKIPLIST_MAXLEVEL, sl->meta->p);
+    // 判断是否达跳表容量上限
     if (sl->meta->mapcap - sl->meta->mapsize < (sizeof(metanode_t) + sizeof(uint64_t) * level)) {
+        // 跳表为SKIPLIST_STATE_NORMAL时才可进行分裂操作
         if (sl->state == SKIPLIST_STATE_NORMAL) {
             _status = skipsplit_and_put(sl, key, key_len, value);
             sl_unlock(sl, _offsets, 0);
             return _status;
         }
+        // 若操作的跳表为分裂者，则扩容，分裂者状态不会触发分裂
         if (sl->state == SKIPLIST_STATE_SPLITER) {
             _status = expandmetafile(sl);
             if (_status.code != 0) {
@@ -1025,6 +1046,10 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
             return statusfuncnotok(_status, err, "pthread_join");
         }
+    }
+    // 若跳表已空，则删除跳表关联文件
+    if (sl->meta != NULL && sl->meta->count == 0) {
+        is_remove_file = 1;
     }
     sl_sync(sl);
     if (sl->meta != NULL && sl->meta->mapped != NULL) {
