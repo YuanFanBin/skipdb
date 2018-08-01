@@ -2,6 +2,7 @@
 #include "../include/btree.h"
 #include <errno.h>
 
+// _sl_names 通过前缀生成跳表所涉及的所有与文件相关的文件名及文件名前缀
 static names_t* _sl_names(const char* prefix) {
     int n = 0;
     int prefix_len = strlen(prefix);
@@ -35,6 +36,7 @@ static names_t* _sl_names(const char* prefix) {
     return ns;
 }
 
+// _sl_names_free 释放ns申请的内存空间
 static void _sl_names_free(names_t* ns) {
     if (ns == NULL) {
         return;
@@ -60,10 +62,12 @@ static void _sl_names_free(names_t* ns) {
     free(ns);
 }
 
+// sl_get_datanode 获取跳表数据文件中指定偏移所对应的datanode_t节点
 inline datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset) {
     return (datanode_t*)(sl->data->mapped + offset);
 }
 
+// createmeta 创建跳表元数据头
 static void createmeta(skiplist_t* sl, void* mapped, uint64_t mapcap, float p) {
     sl->meta = (skipmeta_t*)mapped;
     sl->meta->mapcap = mapcap;
@@ -83,11 +87,13 @@ static void createmeta(skiplist_t* sl, void* mapped, uint64_t mapcap, float p) {
     head->level = 0;
 }
 
+// loadmeta 从映射的mapped中加载跳表元数据头并获取空闲节点列表
 static void loadmeta(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     sl->meta = (skipmeta_t*)mapped;
     sl->meta->mapcap = mapcap;
     sl->meta->mapped = mapped;
 
+    // 获取元数据头中空闲节点并放入metafree中
     metanode_t* curr = (metanode_t*)(mapped + sizeof(skipmeta_t) + sizeof(metanode_t) + sizeof(uint64_t) * SKIPLIST_MAXLEVEL);
     while (curr != NULL && (curr->flag | METANODE_NONE)) {
         if ((curr->flag | METANODE_DELETED) == METANODE_DELETED) {
@@ -104,6 +110,7 @@ static void loadmeta(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     }
 }
 
+// createdata 创建跳表数据文件头
 static void createdata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     sl->data = (skipdata_t*)mapped;
     sl->data->mapped = mapped;
@@ -116,6 +123,7 @@ static int cmpu64(const void* p1, const void* p2) {
     return *((uint64_t*)p1) > *((uint64_t*)p2);
 }
 
+// loaddata 从映射的mapped中加载跳表数据头文件并获取已映射的空闲空间列表
 static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     sl->data = (skipdata_t*)mapped;
     sl->data->mapcap = mapcap;
@@ -125,6 +133,7 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     for (int i = 0; i < sl->meta->count; ++i) {
         offsets[i] = 0;
     }
+    // 获取meta结构中已使用的data中偏移量
     metanode_t* curr = METANODEHEAD(sl);
     for (int i = 0;; ++i) {
         metanode_t* next = METANODE(sl, curr->forwards[0]);
@@ -136,6 +145,7 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     }
     qsort(offsets, sl->meta->count, sizeof(uint64_t*), cmpu64);
     datanode_t* dnode = (datanode_t*)(sl->data->mapped + sizeof(skipdata_t));
+    // 通过已使用的空间，获取空闲的data空间
     for (int i = 0; i < sl->meta->count; ++i) {
         while (offsets[i] != DATANODEPOSITION(sl, dnode)) {
             if (sl->datafree == NULL) {
@@ -151,6 +161,7 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
 
 static status_t _skipsplit(skiplist_t* sl);
 
+// loadsplit 加载分裂跳表
 static status_t loadsplit(skiplist_t* sl) {
     int err;
     status_t _status = { .code = 0 };
@@ -159,6 +170,7 @@ static status_t loadsplit(skiplist_t* sl) {
     sl->split->left = NULL;
     sl->split->right = NULL;
 
+    // 若有redolog对应跳表仅加载redolog对应跳表
     if (access(sl->names->redo, F_OK) == 0) {
         _status = _skipsplit(sl);
         if (_status.code != 0) {
@@ -174,6 +186,7 @@ static status_t loadsplit(skiplist_t* sl) {
         }
         return _status;
     }
+    // 若有left/right跳表则加载left/right跳表
     names_t* lns = _sl_names(sl->names->left_prefix);
     names_t* rns = _sl_names(sl->names->right_prefix);
     if (access(lns->meta, F_OK) == 0 && access(lns->data, F_OK == 0) && access(rns->meta, F_OK) == 0 && access(rns->data, F_OK == 0)) {
@@ -193,11 +206,13 @@ static status_t loadsplit(skiplist_t* sl) {
         sl->state = SKIPLIST_STATE_SPLIT_DONE;
         return _status;
     }
+    // 否则不存在分裂后的跳表
     free(sl->split);
     sl->split = NULL;
     return _status;
 }
 
+// _sl_reset_maxkey 重置跳表maxkey
 static void _sl_reset_maxkey(skiplist_t* sl) {
     char* maxkey = NULL;
     if (sl->maxkey != NULL) {
@@ -208,6 +223,7 @@ static void _sl_reset_maxkey(skiplist_t* sl) {
     memcpy(sl->maxkey, maxkey, sl->maxkey_len);
 }
 
+// _sl_load 加载跳表meta & data数据
 status_t _sl_load(skiplist_t* sl) {
     status_t _status = { .code = 0 };
     uint64_t mapcap = 0;
@@ -235,6 +251,7 @@ status_t _sl_load(skiplist_t* sl) {
     return _status;
 }
 
+// _sl_create 创建出跳表对应的meta&data
 status_t _sl_create(skiplist_t* sl, float p) {
     status_t _status = { .code = 0 };
     void* mapped = NULL;
@@ -260,8 +277,8 @@ status_t _sl_create(skiplist_t* sl, float p) {
     return _status;
 }
 
+// _sl_new 新建跳表结构
 status_t _sl_new(skipdb_t* db, const char* prefix, skiplist_t** sl) {
-    int n;
     int err;
     status_t _status = { .code = 0 };
 
@@ -289,6 +306,7 @@ status_t _sl_new(skipdb_t* db, const char* prefix, skiplist_t** sl) {
     return _status;
 }
 
+// sl_create 创建跳表
 static status_t sl_create(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
     _status = _sl_new(db, prefix, sl);
@@ -304,6 +322,7 @@ static status_t sl_create(skipdb_t* db, const char* prefix, float p, skiplist_t*
     return _status;
 }
 
+// sl_open 打开跳表（创建或加载已有跳表）
 status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
     status_t _status;
 
@@ -337,7 +356,6 @@ status_t sl_open(skipdb_t* db, const char* prefix, float p, skiplist_t** sl) {
 // run_skipsplit 将跳表分裂成 left/right 并将分裂过程中修改的新数据(redolog)同步至left/right
 static void* run_skipsplit(void* arg) {
     uint64_t _offsets[] = {};
-    status_t _status = { .code = 0 };
     skiplist_t* sl = (skiplist_t*)arg;
     // 按照当前跳表元素总数均等拆分（范围不一定相同）
     int lcount = sl->meta->count / 2;
@@ -466,6 +484,7 @@ static status_t _skipsplit(skiplist_t* sl) {
     return _status;
 }
 
+// sl_sync 同步刷新跳表指磁盘
 status_t sl_sync(skiplist_t* sl) {
     status_t _status = { .code = 0 };
     if (sl == NULL) {
@@ -505,6 +524,7 @@ status_t sl_sync(skiplist_t* sl) {
 }
 
 // TODO: 可能会影响碎片整理
+// expandmetafile 扩展meta文件并重新映射meta
 static status_t expandmetafile(skiplist_t* sl) {
     int fd = -1;
     uint64_t newcap = 0;
@@ -529,6 +549,7 @@ static status_t expandmetafile(skiplist_t* sl) {
 }
 
 // TODO: 可能会影响碎片整理
+// expanddatafile 扩展data文件并重新映射data
 static status_t expanddatafile(skiplist_t* sl) {
     int fd = -1;
     uint64_t newcap = 0;
@@ -577,6 +598,7 @@ static status_t skipsplit_and_put(skiplist_t* sl, const void* key, size_t key_le
     return _status;
 }
 
+// sl_rename 重命名跳表映射的文件名称
 static void sl_rename(skiplist_t *sl, const char* prefix) {
     names_t* ns = _sl_names(prefix);
     rename(sl->names->meta, ns->meta);
@@ -587,6 +609,7 @@ static void sl_rename(skiplist_t *sl, const char* prefix) {
 
 status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size);
 
+// notify_btree_split 通知B树分裂并重命名left/right
 static status_t notify_btree_split(skiplist_t* sl) {
     char* prefix;
     uint64_t _offsets[] = {};
@@ -634,6 +657,7 @@ static status_t notify_btree_split(skiplist_t* sl) {
     return _status;
 }
 
+// sl_put put新key至跳表
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
     status_t _status = { .code = 0 };
     metanode_t* head = NULL;
@@ -657,6 +681,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         sl_unlock(sl, _offsets, 0);
         return _status;
     }
+    // 若跳表已分裂完成，则put至left/right并通知btree分裂，分裂后销毁当前跳表
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
         metanode_t* mnode = METANODE(sl->split->left, sl->split->left->meta->tail);
         if (mnode == NULL) {
@@ -708,6 +733,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         }
     }
 
+    // 查找待插入节点及待更新节点列表
     head = curr = METANODEHEAD(sl);
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
@@ -730,6 +756,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         update[level] = curr;
     }
 
+    // 若metafree有空闲则重利用空间
     metanode_t* mnode = NULL;
     if (sl->metafree[level] != NULL && sl->metafree[level]->head != NULL) {
         listnode_t* reuse = NULL;
@@ -748,6 +775,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         mnode->forwards[i] = 0;
     }
 
+    // 若data已映射文件大小不足以存放新key，则扩大文件并重新映射
     if (sl->data->mapcap - sl->data->mapsize < sizeof(datanode_t) + MAX_KEY_LEN) {
         _status = expanddatafile(sl);
         if (_status.code != 0) {
@@ -767,6 +795,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         }
         head->level = mnode->level;
     }
+    // 更新prev的forwards 及 next的backend
     if (update[0] != NULL) {
         metanode_t* next = METANODE(sl, update[0]->forwards[0]);
         if (next != NULL) {
@@ -783,6 +812,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
     return sl_unlock(sl, _offsets, 0);
 }
 
+// sl_get 获取跳表中指定key对应的数据
 status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value) {
     status_t _status = { .code = 0 };
     uint64_t _offsets[] = {};
@@ -794,6 +824,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
     if (_status.code != 0) {
         return _status;
     }
+    // 若被操作的跳表已分裂完成，但上层并未开始分裂，则从left/right中查询
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
         metanode_t* mnode = METANODE(sl->split->left, sl->split->left->meta->tail);
         if (mnode == NULL) {
@@ -815,6 +846,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
         sl_unlock(sl, _offsets, 0);
         return _status;
     }
+    // 若被操作的跳表正在分裂中，则优先搜索redolog
     if (sl->state == SKIPLIST_STATE_SPLITED) {
         sskipnode_t* snode = NULL;
         _status = ssl_getnode(sl->split->redolog, key, key_len, &snode);
@@ -823,6 +855,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
             return _status;
         }
         if (snode != NULL) {
+            // 若在redolog中数据已被删除则不再向下查询
             if ((snode->flag & SSL_NODE_DELETED) == SSL_NODE_DELETED) {
                 _status.code = STATUS_SKIPLIST_KEY_NOTFOUND;
                 sl_unlock(sl, _offsets, 0);
@@ -832,6 +865,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
             return sl_unlock(sl, _offsets, 0);
         }
     }
+    // 在原始跳表中查询
     metanode_t* curr = METANODEHEAD(sl);
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
@@ -857,6 +891,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
     return _status;
 }
 
+// sl_del 删除跳表中指定key对应的数据
 status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     status_t _status = { .code = 0 };
     uint64_t _offsets[] = {};
@@ -870,11 +905,13 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     if (_status.code != 0) {
         return _status;
     }
+    // 若跳表处于分裂状态中，则将删除操作加入到redolog中
     if (sl->state == SKIPLIST_STATE_SPLITED) {
         _status = ssl_delput(sl->split->redolog, key, key_len);
         sl_unlock(sl, _offsets, 0);
         return _status;
     }
+    // 若跳表以分裂完成，但上层还未分裂，则将删除操作推至left/right中
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
         metanode_t* mnode = METANODE(sl->split->left, sl->split->left->meta->tail);
         if (mnode == NULL) {
@@ -893,8 +930,8 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
         sl_unlock(sl, _offsets, 0);
         return _status;
     }
+    // 找出跳表中待删除节点及前后待更新节点
     metanode_t* curr = METANODEHEAD(sl);
-    // find all level, update max level
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
             metanode_t* next = METANODE(sl, curr->forwards[level]);
@@ -918,6 +955,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     if (mnode == NULL) {
         return sl_unlock(sl, _offsets, 0);
     }
+    // 更新prev的forwards 及 next的backend 及 跳表的tail
     for (int i = 0; i < mnode->level; ++i) {
         update[i]->forwards[i] = mnode->forwards[i];
     }
@@ -933,11 +971,14 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     }
     mnode->flag = METANODE_DELETED;
     --sl->meta->count;
+    // 空闲data加入datafree
     list_push_front(sl->datafree, mnode->offset); // unused
+    // 空间meta回收重利用
     list_push_front(sl->metafree[mnode->level], METANODEPOSITION(sl, mnode)); // recycle meta space
     return sl_unlock(sl, _offsets, 0);
 }
 
+// _sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回值中code为STATUS_STATE_MAXKEY_NOTFOUND
 status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     status_t _status = { .code = 0 };
     void *k1 = NULL, *k2 = NULL;
@@ -947,6 +988,7 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         return statusnotok0(_status, "skiplist is NULL");
     }
 
+    // 若跳表在分裂中，maxkey为redolog 及 跳表自身maxkey中的最大值
     if (sl->state == SKIPLIST_STATE_SPLITED) {
         status_t s1 = ssl_get_maxkey(sl->split->redolog, &k1, &l1);
         status_t s2 = sl_get_maxkey(sl, &k2, &l2);
@@ -967,6 +1009,7 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         }
         return _status;
     }
+    // 若跳表已分裂完成，但上层还未分裂，则从right/left中找出最大值
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
         _status = sl_get_maxkey(sl->split->right, key, size);
         if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
@@ -974,6 +1017,7 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
         }
         return _status;
     }
+    // 否则从跳表自身maxkey中返回
     metanode_t* mnode = METANODE(sl, sl->meta->tail);
     if (mnode == NULL || ((mnode->flag & METANODE_HEAD) == METANODE_HEAD)) {
         _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
@@ -985,6 +1029,7 @@ status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     return _status;
 }
 
+// sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回跳表自身的maxkey（默认为'\0'）
 status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     status_t _status;
     uint64_t _offsets[] = {};
@@ -1042,6 +1087,7 @@ status_t sl_unlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
     return _status;
 }
 
+// _sl_close 关闭跳表并释放相应内存，若指定is_remove_file则按需删除跳表所有数据文件
 status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     int err;
     status_t _status = { .code = 0 };
@@ -1049,6 +1095,7 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     if (sl == NULL) {
         return _status;
     }
+    // 关闭跳表时，等待跳表完成自身的分裂操作
     if (sl->split != NULL && sl->state != SKIPLIST_STATE_SPLIT_DONE) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
             return statusfuncnotok(_status, err, "pthread_join");
@@ -1058,6 +1105,7 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     if (sl->meta != NULL && sl->meta->count == 0) {
         is_remove_file = 1;
     }
+    // 关闭时主动刷盘
     sl_sync(sl);
     if (sl->meta != NULL && sl->meta->mapped != NULL) {
         if (munmap(sl->meta->mapped, sl->meta->mapsize) == -1) {
@@ -1093,24 +1141,21 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
         return statusfuncnotok(_status, err, "pthread_rwlock_destroy");
     }
     if (sl->split != NULL) {
+        // 关闭时保留left/right数据文件，移除redolog
         if (sl->split->left != NULL) {
-            _status = _sl_close(sl->split->left, sl->split->redolog != NULL ? 1 : 0);
+            _status = _sl_close(sl->split->left, is_remove_file);
             if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->right != NULL) {
-            _status = _sl_close(sl->split->right, sl->split->redolog != NULL ? 1 : 0);
+            _status = _sl_close(sl->split->right, is_remove_file);
             if (_status.code != 0) {
                 return _status;
             }
         }
         if (sl->split->redolog != NULL) {
-            if (is_remove_file) {
-                _status = ssl_destroy(sl->split->redolog);
-            } else {
-                _status = ssl_close(sl->split->redolog);
-            }
+            _status = ssl_destroy(sl->split->redolog);
             if (_status.code != 0) {
                 return _status;
             }
@@ -1120,10 +1165,12 @@ status_t _sl_close(skiplist_t* sl, int is_remove_file) {
     return _status;
 }
 
+// sl_close 关闭跳表（保留数据文件）
 status_t sl_close(skiplist_t* sl) {
     return _sl_close(sl, 0);
 }
 
+// sl_destroy 销毁跳表（删除数据文件）
 status_t sl_destroy(skiplist_t* sl) {
     return _sl_close(sl, 1);
 }
