@@ -79,11 +79,11 @@ void log_fatal(const char* format, ...) {
 
 void log_error(const char* format, ...) {
     va_list ap;
-    fprintf(stderr, "\033[31m");
+    fprintf(stderr, "\033[5m\033[40;31m");
     va_start(ap, format);
     vfprintf(stderr, format, ap);
     va_end(ap);
-    fprintf(stderr, "\033[0m");
+    fprintf(stderr, "\033[0m\033[0m");
 }
 
 void log_warn(const char* format, ...) {
