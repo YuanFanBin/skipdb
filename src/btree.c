@@ -268,17 +268,22 @@ static int btree_insert_descend(btree_t *bt,
 }
 
 int btree_insert(btree_t *bt, key_type key, data_type value) {
+    if (key.size == 0) {
+        return 0;
+    }
+
+    int r;
     void *newchild = NULL;
     key_type newkey;
-    int r;
+
     pthread_rwlock_wrlock(&(bt->rwlock));
     if (bt->root == NULL) {
         bt->root = allocate_leaf(2 * bt->degree - 1);
-        if (bt->root == NULL) return -1;
         bt->fhead = bt->root;
         bt->ftail = bt->root;
         bt->height = 1;
     }
+
 
     r = btree_insert_descend(bt, bt->root, bt->height - 1, key, value,
                              &newkey, &newchild);
@@ -416,21 +421,22 @@ static void shift_right_inner(btree_inode_t *left, btree_inode_t *right,
 
     for (i = right->slotuse - 1; i >= 0; ++i) {
         right->keyslots[i + shiftnum] = right->keyslots[i];
-        right->children[i + shiftnum + 1] = right->children[i + 1];
     }
-    right->children[i + shiftnum + 1] = right->children[i + 1];
+    for (i = right->slotuse; i >= 0; ++i) {
+        right->children[i + shiftnum] = right->children[i];
+    }
 
     right->slotuse += shiftnum;
     right->keyslots[shiftnum - 1] = parent->keyslots[parentslot];
 
     for (i = 0; i < shiftnum - 1; ++i) {
         right->keyslots[i] = left->keyslots[left->slotuse - shiftnum + i + 1];
+    }
+    for (i = 0; i <= shiftnum - 1; ++i) {
         right->children[i] = left->children[left->slotuse - shiftnum + i + 1];
     }
-    right->children[i] = left->children[left->slotuse - shiftnum + i + 1];
 
     parent->keyslots[parentslot] = left->keyslots[left->slotuse - shiftnum];
-
     left->slotuse -= shiftnum;
 }
 
@@ -451,6 +457,8 @@ btree_result_t btree_erase_descend(btree_t *bt,
             return brief_result(btree_not_found);
         }
 
+        /* delete leaf here */
+        free_key(leaf->keyslots[slot]);
         for (i = slot + 1; i < leaf->slotuse; ++i) {
             leaf->keyslots[i - 1] = leaf->keyslots[i];
             leaf->dataslots[i - 1] = leaf->dataslots[i];
@@ -668,7 +676,10 @@ data_type btree_search(btree_t *bt, key_type key) {
     btree_inode_t *inner;
     btree_fnode_t *leaf;
     unsigned short level = bt->height - 1;
-    if (!n) return NULL;
+    if (!n) {
+        pthread_rwlock_unlock(&(bt->rwlock));
+        return NULL;
+    }
 
     while (level > 0) {
         inner = n;
