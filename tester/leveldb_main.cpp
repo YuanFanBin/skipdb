@@ -24,6 +24,15 @@ int get(void *db, const char *key, int key_len, uint64_t *p_value) {
     return r;
 }
 
+int del(void *db, const char *key, int key_len) {
+    int r = leveldb_del((leveldb_t *)db, key, (size_t) key_len);
+    if (r != 0) {
+        printf("leveldb_del -- r %d\n\tkey: %s, key_len: %d\n",
+               r, key, key_len);
+    }
+    return r;
+}
+
 int main(int argc, const char *argv[]) {
     if (argc <= 1) {
         printf("Usage: ./a.out <count> <key_len>\n");
@@ -55,6 +64,7 @@ int main(int argc, const char *argv[]) {
     t.db = db;
     t.put = put;
     t.get = get;
+    t.del = del;
 
     t.dis.count = (uint64_t) count;
     t.dis.dis_items_len = 1;
