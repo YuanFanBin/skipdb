@@ -28,7 +28,7 @@
 #define DEFAULT_METAFILE_SIZE   (uint64_t)(4194304) // 默认文件大小(4M)
 // 数据(key)文件最大大小（自动扩容）
 // 不能低于sizeof(datanode_t) + MAX_KEN_LEN
-#define DEFAULT_DATAFILE_SIZE   (uint64_t)(4194304) // 默认数据文件大小为(4M)
+#define DEFAULT_DATAFILE_SIZE   (uint64_t)(16777216) // 默认数据文件大小为(16M)
 
 #define MAX_KEY_LEN         65535   // key最大长度(1 << 16 - 1), ::uint16_t datanode->size::
 #define SKIPLIST_MAXLEVEL   64      // 跳表最大level

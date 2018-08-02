@@ -282,6 +282,8 @@ static status_t loadsplit(skiplist_t* sl) {
         sl->state = SKIPLIST_STATE_SPLIT_DONE;
         return _status;
     }
+    _sl_names_free(lns);
+    _sl_names_free(rns);
     // 否则不存在分裂后的跳表
     free(sl->split);
     sl->split = NULL;
@@ -290,7 +292,7 @@ static status_t loadsplit(skiplist_t* sl) {
 
 // _sl_load 加载跳表meta & data数据
 status_t _sl_load(skiplist_t* sl) {
-    status_t _status = { .code = 0 };
+    status_t _status;
     uint64_t mapcap = 0;
     void* mapped = NULL;
 
@@ -318,7 +320,7 @@ status_t _sl_load(skiplist_t* sl) {
 
 // _sl_create 创建出跳表对应的meta&data
 status_t _sl_create(skiplist_t* sl, float p) {
-    status_t _status = { .code = 0 };
+    status_t _status;
     void* mapped = NULL;
 
     // create meta
