@@ -80,29 +80,45 @@ int benchmark_put(test_t t) {
 
     char **data = make_data(dis);
 
-    for (size_t i = 0; i < dis.count; i++) {
-        if (strlen(data[i]) != 32) {
-            printf("data[%ld]: %ld\n", i, strlen(data[i]));
-        }
-    }
-
-    struct timeval t1, t2;
 
     {
+        struct timeval t1, t2;
+    
         gettimeofday(&t1, NULL);
 
         for (int i = 0; i < dis.count; ++i) {
-            if ((ret = t.put(t.db, data[i], (int) strlen(data[i]), (uint64_t) i)) !=
-                0) {
+            if ((ret = t.put(t.db, data[i], (int) strlen(data[i]), (uint64_t) i)) != 0) {
                 return ret;
             }
         }
 
         gettimeofday(&t2, NULL);
-    }
 
-    double timed = delta(t1, t2);
-    printf("PUT time: %lf, %lfw/s\n", timed, dis.count / timed / 10000);
+        double timed = delta(t1, t2);
+        printf("PUT time: %lf, %lfw/s\n", timed, dis.count / timed / 10000);
+    }
+    
+    {
+        struct timeval t1, t2;
+
+        gettimeofday(&t1, NULL);
+        
+        uint64_t value = 0;
+        for (int i = 0; i < dis.count; ++i) {
+            if ((ret = t.get(t.db, data[i], (int) strlen(data[i]), &value) != 0)) {
+                return ret;
+            }
+            if (value != (uint64_t) i) {
+                printf("the value if not consistent\n");
+                return -1;
+            }
+        }
+
+        gettimeofday(&t2, NULL);
+
+        double timed = delta(t1, t2);
+        printf("GET time: %lf, %lfw/s\n", timed, dis.count / timed / 10000);
+    }
 
     free_data(dis, data);
     return ret;
