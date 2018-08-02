@@ -593,21 +593,16 @@ status_t sl_sync(skiplist_t* sl) {
 // TODO: 可能会影响碎片整理
 // expandmetafile 扩展meta文件并重新映射meta
 static status_t expandmetafile(skiplist_t* sl) {
-    int fd = -1;
     uint64_t newcap = 0;
     void* newmapped = NULL;
     status_t _status = { .code = 0 };
 
-    if ((fd = open(sl->names->meta, O_RDWR)) < 0) {
-        return statusfuncnotok(_status, errno, "open");
-    }
     if (sl->meta->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
         newcap = sl->meta->mapcap * 2;
     } else {
         newcap = sl->meta->mapcap + 1073741824;
     }
-    _status = filemremap(fd, sl->meta->mapped, sl->meta->mapcap, newcap, &newmapped);
-    close(fd);
+    _status = ofmremap(sl->names->meta, sl->meta->mapped, sl->meta->mapcap, newcap, &newmapped);
     if (_status.code != 0) {
         return _status;
     }
@@ -618,21 +613,16 @@ static status_t expandmetafile(skiplist_t* sl) {
 // TODO: 可能会影响碎片整理
 // expanddatafile 扩展data文件并重新映射data
 static status_t expanddatafile(skiplist_t* sl) {
-    int fd = -1;
     uint64_t newcap = 0;
     void* newmapped = NULL;
     status_t _status = { .code = 0 };
 
-    if ((fd = open(sl->names->data, O_RDWR)) < 0) {
-        return statusfuncnotok(_status, errno, "open");
-    }
     if (sl->data->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
         newcap = sl->data->mapcap * 2;
     } else {
         newcap = sl->data->mapcap + 1073741824;
     }
-    _status = filemremap(fd, sl->data->mapped, sl->data->mapcap, newcap, &newmapped);
-    close(fd);
+    _status = ofmremap(sl->names->data, sl->data->mapped, sl->data->mapcap, newcap, &newmapped);
     if (_status.code != 0) {
         return _status;
     }

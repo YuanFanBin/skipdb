@@ -1,7 +1,9 @@
+#include "status.h"
 #include "util.h"
-#include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -33,7 +35,7 @@ uint8_t random_level(int max_level, float p) {
     return (level < max_level) ? level : max_level;
 }
 
-status_t filemmap(int fd, uint64_t size, void** mapped) {
+status_t fmmap(int fd, uint64_t size, void** mapped) {
     status_t _status = { .code = 0 };
 
     if ((*mapped = mmap(NULL, (size_t)size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == (void*)-1) {
@@ -46,7 +48,7 @@ status_t filemmap(int fd, uint64_t size, void** mapped) {
     return _status;
 }
 
-status_t filemremap(int fd, void* old_mapped, size_t old_size, size_t new_size, void** new_mapped) {
+status_t fmremap(int fd, void* old_mapped, size_t old_size, size_t new_size, void** new_mapped) {
     status_t _status = { .code = 0 };
 
     if (munmap(old_mapped, old_size) == -1) {
@@ -64,6 +66,17 @@ status_t filemremap(int fd, void* old_mapped, size_t old_size, size_t new_size, 
     return _status;
 }
 
+status_t ofmremap(const char* filename, void* old_mapped, size_t old_size, size_t new_size, void** new_mapped) {
+    int fd;
+    status_t _status = { .code = 0 };
+    if ((fd = open(filename, O_RDWR)) < 0) {
+        return statusfuncnotok(_status, errno, "open");
+    }
+    _status = fmremap(fd, old_mapped, old_size, new_size, new_mapped);
+    close(fd);
+    return _status;
+}
+
 status_t ommap(const char* filename, uint64_t* mapcap, void** mapped) {
     int fd;
     struct stat s;
@@ -77,7 +90,7 @@ status_t ommap(const char* filename, uint64_t* mapcap, void** mapped) {
         return statusfuncnotok(_status, errno, "fstat");
     }
     *mapcap = s.st_size;
-    _status = filemmap(fd, s.st_size, mapped);
+    _status = fmmap(fd, s.st_size, mapped);
     close(fd);
     return _status;
 }
@@ -93,7 +106,7 @@ status_t cmmap(const char* filename, uint64_t mapcap, void** mapped) {
         close(fd);
         return statusfuncnotok(_status, errno, "ftruncate");
     }
-    _status = filemmap(fd, mapcap, mapped);
+    _status = fmmap(fd, mapcap, mapped);
     close(fd);
     return _status;
 }
