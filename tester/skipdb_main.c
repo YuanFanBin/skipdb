@@ -34,7 +34,7 @@ int main(int argc, const char *argv[]) {
     status_t st = {0};
     skipdb_t *db = NULL;
 
-    st = skipdb_open("./data", &db, NULL);
+    st = skipdb_open("skipdb_data", &db, NULL);
     if (st.code != 0) {
         panic("skipdb_open(st.code not 0)");
     }
@@ -43,7 +43,7 @@ int main(int argc, const char *argv[]) {
     t.db = db;
     t.put = put;
 
-    t.dis.count = count;
+    t.dis.count = (uint64_t) count;
     t.dis.dis_items_len = 1;
     t.dis.dis_items = malloc(sizeof(dis_item_t) * t.dis.dis_items_len);
     t.dis.dis_items[0].key_len = key_len;
