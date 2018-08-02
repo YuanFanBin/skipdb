@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <skipdb.h>
 #include <status.h>
+#include <errno.h>
 
 #include "skipdb.h"
 #include "status.h"
@@ -52,7 +53,17 @@ status_t find_sl_names(const char *path, slice_pvoid *p_spc) {
     struct dirent *dirp = NULL;
 
     if ((dp = opendir(path)) == NULL) {
-        return (st.code = STATUS_SKIPDB_OPEN_FAILED, st);
+        if (errno == ENOENT) {
+            if (mkdir(path, 0755) == -1) {
+                return (st.code = STATUS_SKIPDB_OPEN_FAILED, st);
+            } else {
+                if ((dp = opendir(path)) == NULL) {
+                    return (st.code = STATUS_SKIPDB_OPEN_FAILED, st);
+                }
+            }
+        } else {
+            return (st.code = STATUS_SKIPDB_OPEN_FAILED, st);
+        }
     }
 
     while ((dirp = readdir(dp)) != NULL) {
