@@ -749,7 +749,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
             return _status;
         }
         datanode_t* dnode = sl_get_datanode(sl->split->left, mnode->offset);
-        switch (compare(dnode->data, dnode->size, key, key_len)) {
+        switch (compare(key, key_len, dnode->data, dnode->size)) {
             case 1:
                 _status = sl_put(sl->split->right, key, key_len, value);
                 break;
