@@ -607,8 +607,6 @@ static void sl_rename(skiplist_t *sl, const char* prefix) {
     sl->names = ns;
 }
 
-status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size);
-
 // notify_btree_split 通知B树分裂并重命名left/right
 static status_t notify_btree_split(skiplist_t* sl) {
     char* prefix;
@@ -619,14 +617,8 @@ static status_t notify_btree_split(skiplist_t* sl) {
     if (sl->db == NULL) {
         return statusnotok0(_status, "skiplist->db is NULL");
     }
-    _status = _sl_get_maxkey(sl, (void**)&ostr.data, &ostr.size);
-    if (_status.code != 0) {
-        if (_status.code != STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
-            return _status;
-        }
-        ostr.data = sl->maxkey;
-        ostr.size = sl->maxkey_len;
-    }
+    ostr.data = sl->maxkey;
+    ostr.size = sl->maxkey_len;
     _status = sl_get_maxkey(sl->split->left, (void**)&lstr.data, &lstr.size);
     if (_status.code != 0) {
         return _status;
