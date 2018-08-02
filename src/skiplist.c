@@ -551,7 +551,7 @@ static status_t _skipsplit(skiplist_t* sl) {
     return _status;
 }
 
-// sl_sync 同步刷新跳表指磁盘
+// sl_sync 同步刷新跳表至磁盘
 status_t sl_sync(skiplist_t* sl) {
     status_t _status = { .code = 0 };
     if (sl == NULL) {
@@ -859,6 +859,8 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         metanode_t* next = METANODE(sl, update[0]->forwards[0]);
         if (next != NULL) {
             next->backward = METANODEPOSITION(sl, mnode);
+        } else {
+            sl->meta->tail = METANODEPOSITION(sl, mnode);
         }
     }
     for (int i = 0; i < mnode->level; ++i) {
@@ -866,7 +868,6 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         update[i]->forwards[i] = METANODEPOSITION(sl, mnode);
     }
     sl->meta->count++;
-    sl->meta->tail = METANODEPOSITION(sl, mnode);
     sl->meta->mapsize += METANODESIZE(mnode);
     return sl_unlock(sl, _offsets, 0);
 }
@@ -892,7 +893,7 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
             return _status;
         }
         datanode_t* dnode = sl_get_datanode(sl->split->left, mnode->offset);
-        switch (compare(dnode->data, dnode->size, key, key_len)) {
+        switch (compare(key, key_len, dnode->data, dnode->size)) {
             case -1:
                 _status = sl_get(sl->split->left, key, key_len, value);
                 break;
