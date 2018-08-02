@@ -748,10 +748,10 @@ int btree_split_cb(btree_t *bt, key_type oldkey, key_type newkey1, data_type val
     if (btree_erase_unlock(bt, oldkey) != 0) {
         return -1;
     }
-    if (btree_insert(bt, newkey1, value1) != 0) {
+    if (btree_insert_unlock(bt, newkey1, value1) != 0) {
         return -1;
     }
-    if (btree_insert(bt, newkey2, value2) != 0) {
+    if (btree_insert_unlock(bt, newkey2, value2) != 0) {
         return -1;
     }
     pthread_rwlock_unlock(&(bt->rwlock));
