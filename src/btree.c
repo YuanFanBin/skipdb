@@ -465,7 +465,7 @@ btree_result_t btree_erase_descend(btree_t *bt,
         }
 
         /* delete leaf here */
-        free_key(leaf->keyslots[slot]);
+        //free_key(leaf->keyslots[slot]);
         for (i = slot + 1; i < leaf->slotuse; ++i) {
             leaf->keyslots[i - 1] = leaf->keyslots[i];
             leaf->dataslots[i - 1] = leaf->dataslots[i];
