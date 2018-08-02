@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// TODO:
 status_t ssl_load(const char* filename, sskiplist_t** ssl) {
     int err;
     int fd = -1;
