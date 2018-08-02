@@ -1,6 +1,10 @@
 #ifndef TESTER_TESTER_H
 #define TESTER_TESTER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 typedef struct {
@@ -29,6 +33,10 @@ typedef struct {
 
 int benchmark_put(test_t t);
 
-void panic(char *msg);
+void panic(const char *msg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //TESTER_TESTER_H

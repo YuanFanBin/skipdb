@@ -108,7 +108,7 @@ int benchmark_put(test_t t) {
     return ret;
 }
 
-void panic(char *msg) {
+void panic(const char *msg) {
     printf("panic: %s\n", msg);
     printf("errno: %d, error: %s\n", errno, strerror(errno));
     exit(-1);
