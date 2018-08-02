@@ -339,7 +339,7 @@ static btree_result_t merge_inner(btree_inode_t *left, btree_inode_t *right,
         left->keyslots[left->slotuse + i] = right->keyslots[i];
     }
     for (i = 0; i <= right->slotuse; ++i) {
-        left->keyslots[left->slotuse + i] = right->keyslots[i];
+        left->children[left->slotuse + i] = right->children[i];
     }
 
     left->slotuse += right->slotuse;
