@@ -62,6 +62,80 @@ static void _sl_names_free(names_t* ns) {
     free(ns);
 }
 
+// find_and_reset_maxkey 查找并重置maxkey
+static void find_and_reset_maxkey(skiplist_t* sl, sskiplist_t* redo, skiplist_t* left, skiplist_t* right) {
+    size_t size = 1;
+    char* maxkey = (char*)malloc(sizeof(char));
+    maxkey[0] = '\0';
+    if (sl != NULL) {
+        metanode_t* mnode = METANODE(sl, sl->meta->tail);
+        if (mnode != NULL && ((mnode->flag & METANODE_HEAD) != METANODE_HEAD)) {
+            free(maxkey);
+            datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
+            maxkey = (char*)malloc(sizeof(char) * dnode->size);
+            memcpy(maxkey, dnode->data, dnode->size);
+            size = dnode->size;
+        }
+    }
+    if (redo != NULL) {
+        char* redo_maxkey = NULL;
+        size_t redo_size = 0;
+        status_t st = ssl_get_maxkey(redo, (void**)&redo_maxkey, &redo_size);
+        if (st.code == 0 && (compare(maxkey, size, redo_maxkey, redo_size) == -1)) {
+            free(maxkey);
+            maxkey = (char*)malloc(sizeof(char) * redo_size);
+            memcpy(maxkey, redo_maxkey, redo_size);
+            size = redo_size;
+        }
+        free(sl->maxkey);
+        sl->maxkey = maxkey;
+        sl->maxkey_len = size;
+        return;
+    }
+    if (left != NULL) {
+        metanode_t* mnode = METANODE(left, left->meta->tail);
+        if (mnode != NULL && ((mnode->flag & METANODE_HEAD) != METANODE_HEAD)) {
+            datanode_t* dnode = sl_get_datanode(left, mnode->offset);
+            if (compare(maxkey, size, dnode->data, dnode->size) == -1) {
+                free(maxkey);
+                maxkey = (char*)malloc(sizeof(char) * dnode->size);
+                memcpy(maxkey, dnode->data, dnode->size);
+                size = dnode->size;
+            }
+        }
+    }
+    if (right != NULL) {
+        metanode_t* mnode = METANODE(right, right->meta->tail);
+        if (mnode != NULL && ((mnode->flag & METANODE_HEAD) != METANODE_HEAD)) {
+            datanode_t* dnode = sl_get_datanode(right, mnode->offset);
+            if (compare(maxkey, size, dnode->data, dnode->size) == -1) {
+                free(maxkey);
+                maxkey = (char*)malloc(sizeof(char) * dnode->size);
+                memcpy(maxkey, dnode->data, dnode->size);
+                size = dnode->size;
+            }
+        }
+    }
+    free(sl->maxkey);
+    sl->maxkey = maxkey;
+    sl->maxkey_len = size;
+}
+
+// sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回跳表自身的maxkey（默认为'\0'）
+status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
+    status_t _status;
+    uint64_t _offsets[] = {};
+
+    _status = sl_rdlock(sl, _offsets, 0);
+    if (_status.code != 0) {
+        return _status;
+    }
+    *key = sl->maxkey;
+    *size = sl->maxkey_len;
+    sl_unlock(sl, _offsets, 0);
+    return _status;
+}
+
 // sl_get_datanode 获取跳表数据文件中指定偏移所对应的datanode_t节点
 inline datanode_t* sl_get_datanode(skiplist_t* sl, uint64_t offset) {
     return (datanode_t*)(sl->data->mapped + offset);
@@ -159,17 +233,6 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     free(offsets);
 }
 
-// _sl_reset_maxkey 重置跳表maxkey
-static void _sl_reset_maxkey(skiplist_t* sl) {
-    char* maxkey = NULL;
-    if (sl->maxkey != NULL) {
-        free(sl->maxkey);
-    }
-    sl_get_maxkey(sl, (void**)&maxkey, &sl->maxkey_len);
-    sl->maxkey = (char*)malloc(sizeof(char) * sl->maxkey_len);
-    memcpy(sl->maxkey, maxkey, sl->maxkey_len);
-}
-
 static status_t _skipsplit(skiplist_t* sl);
 
 // loadsplit 加载分裂跳表
@@ -195,7 +258,7 @@ static status_t loadsplit(skiplist_t* sl) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
             return statusfuncnotok(_status, err, "pthread_join");
         }
-        _sl_reset_maxkey(sl);
+        find_and_reset_maxkey(sl, sl->split->redolog, NULL, NULL);
         return _status;
     }
     // 若有left/right跳表则加载left/right跳表
@@ -215,7 +278,8 @@ static status_t loadsplit(skiplist_t* sl) {
             free(sl->split);
             return _status;
         }
-        _sl_reset_maxkey(sl);
+        free(sl->maxkey);
+        find_and_reset_maxkey(sl, NULL, sl->split->left, sl->split->right);
         sl->state = SKIPLIST_STATE_SPLIT_DONE;
         return _status;
     }
@@ -249,7 +313,7 @@ status_t _sl_load(skiplist_t* sl) {
         }
         loaddata(sl, mapped, mapcap);
     }
-    _sl_reset_maxkey(sl);
+    find_and_reset_maxkey(sl, NULL, NULL, NULL);
     return _status;
 }
 
@@ -363,6 +427,8 @@ static void* run_skipsplit(void* arg) {
     int lcount = sl->meta->count / 2;
     int rcount = sl->meta->count - lcount;
 
+    printf("[%d] meta: %s\n", __LINE__, sl->names->meta);
+
     // 左半部分插入sl->split->left
     metanode_t* curr = METANODEHEAD(sl);
     for (int i = 0; i < lcount; ++i) {
@@ -393,6 +459,7 @@ static void* run_skipsplit(void* arg) {
         metanode_t* rmnode = METANODE(sl->split->right, sl->split->right->meta->tail);
         if (rmnode == NULL) {
             sl_unlock(sl, _offsets, 0);
+            printf("[%d] meta: %s\n", __LINE__, sl->names->meta);
             return NULL;
         }
         sskipnode_t* ssnode = SSL_NODEHEAD(sl->split->redolog);
@@ -409,6 +476,7 @@ static void* run_skipsplit(void* arg) {
             ssnode = next;
         }
         sl_unlock(sl, _offsets, 0);
+        printf("[%d] meta: %s\n", __LINE__, sl->names->meta);
         return NULL;
     }
     // 获取sl->split->left最大key
@@ -441,8 +509,8 @@ static void* run_skipsplit(void* arg) {
     }
     free(key);
     // 重置left/right中max key
-    _sl_reset_maxkey(sl->split->left);
-    _sl_reset_maxkey(sl->split->right);
+    find_and_reset_maxkey(sl->split->left, NULL, NULL, NULL);
+    find_and_reset_maxkey(sl->split->right, NULL, NULL, NULL);
     // 将状态标记为：跳表分裂完成
     sl->state = SKIPLIST_STATE_SPLIT_DONE;
     // 释放并移除sl->split->redolog
@@ -450,6 +518,7 @@ static void* run_skipsplit(void* arg) {
     sl->split->redolog = NULL;
     sl_unlock(sl, _offsets, 0);
     pthread_exit((void *)0);
+    printf("[%d] meta: %s\n", __LINE__, sl->names->meta);
     return NULL;
 }
 
@@ -970,21 +1039,6 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     // 空间meta回收重利用
     list_push_front(sl->metafree[mnode->level], METANODEPOSITION(sl, mnode)); // recycle meta space
     return sl_unlock(sl, _offsets, 0);
-}
-
-// sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回跳表自身的maxkey（默认为'\0'）
-status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
-    status_t _status;
-    uint64_t _offsets[] = {};
-
-    _status = sl_rdlock(sl, _offsets, 0);
-    if (_status.code != 0) {
-        return _status;
-    }
-    *key = sl->maxkey;
-    *size = sl->maxkey_len;
-    sl_unlock(sl, _offsets, 0);
-    return _status;
 }
 
 status_t sl_rdlock(skiplist_t* sl, uint64_t offsets[], size_t offsets_n) {
