@@ -52,7 +52,6 @@ int main(int argc, const char *argv[]) {
     }
     printf("count: %d, key_len: %d\n\n", count, key_len);
 
-
     int r = 0;
     leveldb_t *db = NULL;
     r = leveldb_open("leveldb_data", &db);
