@@ -159,6 +159,17 @@ static void loaddata(skiplist_t* sl, void* mapped, uint64_t mapcap) {
     free(offsets);
 }
 
+// _sl_reset_maxkey 重置跳表maxkey
+static void _sl_reset_maxkey(skiplist_t* sl) {
+    char* maxkey = NULL;
+    if (sl->maxkey != NULL) {
+        free(sl->maxkey);
+    }
+    sl_get_maxkey(sl, (void**)&maxkey, &sl->maxkey_len);
+    sl->maxkey = (char*)malloc(sizeof(char) * sl->maxkey_len);
+    memcpy(sl->maxkey, maxkey, sl->maxkey_len);
+}
+
 static status_t _skipsplit(skiplist_t* sl);
 
 // loadsplit 加载分裂跳表
@@ -184,6 +195,7 @@ static status_t loadsplit(skiplist_t* sl) {
         if ((err = pthread_join(sl->split_id, NULL)) != 0) {
             return statusfuncnotok(_status, err, "pthread_join");
         }
+        _sl_reset_maxkey(sl);
         return _status;
     }
     // 若有left/right跳表则加载left/right跳表
@@ -203,6 +215,7 @@ static status_t loadsplit(skiplist_t* sl) {
             free(sl->split);
             return _status;
         }
+        _sl_reset_maxkey(sl);
         sl->state = SKIPLIST_STATE_SPLIT_DONE;
         return _status;
     }
@@ -210,17 +223,6 @@ static status_t loadsplit(skiplist_t* sl) {
     free(sl->split);
     sl->split = NULL;
     return _status;
-}
-
-// _sl_reset_maxkey 重置跳表maxkey
-static void _sl_reset_maxkey(skiplist_t* sl) {
-    char* maxkey = NULL;
-    if (sl->maxkey != NULL) {
-        free(sl->maxkey);
-    }
-    sl_get_maxkey(sl, (void**)&maxkey, &sl->maxkey_len);
-    sl->maxkey = (char*)malloc(sizeof(char) * sl->maxkey_len);
-    memcpy(sl->maxkey, maxkey, sl->maxkey_len);
 }
 
 // _sl_load 加载跳表meta & data数据
@@ -970,57 +972,6 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     return sl_unlock(sl, _offsets, 0);
 }
 
-// _sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回值中code为STATUS_STATE_MAXKEY_NOTFOUND
-status_t _sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
-    status_t _status = { .code = 0 };
-    void *k1 = NULL, *k2 = NULL;
-    size_t l1 = 0, l2 = 0;
-
-    if (sl == NULL) {
-        return statusnotok0(_status, "skiplist is NULL");
-    }
-
-    // 若跳表在分裂中，maxkey为redolog 及 跳表自身maxkey中的最大值
-    if (sl->state == SKIPLIST_STATE_SPLITED) {
-        status_t s1 = ssl_get_maxkey(sl->split->redolog, &k1, &l1);
-        status_t s2 = sl_get_maxkey(sl, &k2, &l2);
-        if (s1.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
-            *key = k2;
-            *size = l2;
-            _status = s2;
-        } else if (s2.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
-            *key = k1;
-            *size = l1;
-            _status = s1;
-        } else if (compare(k1, l1, k2, l2) == -1) {
-            *key = k2;
-            *size = l2;
-        } else {
-            *key = k1;
-            *size = l1;
-        }
-        return _status;
-    }
-    // 若跳表已分裂完成，但上层还未分裂，则从right/left中找出最大值
-    if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
-        _status = sl_get_maxkey(sl->split->right, key, size);
-        if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
-            _status = sl_get_maxkey(sl->split->left, key, size);
-        }
-        return _status;
-    }
-    // 否则从跳表自身maxkey中返回
-    metanode_t* mnode = METANODE(sl, sl->meta->tail);
-    if (mnode == NULL || ((mnode->flag & METANODE_HEAD) == METANODE_HEAD)) {
-        _status.code = STATUS_SKIPLIST_MAXKEY_NOTFOUND;
-        return _status;
-    }
-    datanode_t* dnode = sl_get_datanode(sl, mnode->offset);
-    *key = dnode->data;
-    *size = dnode->size;
-    return _status;
-}
-
 // sl_get_maxkey 获取跳表的maxkey 若跳表为空则返回跳表自身的maxkey（默认为'\0'）
 status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     status_t _status;
@@ -1030,12 +981,8 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     if (_status.code != 0) {
         return _status;
     }
-    _status = _sl_get_maxkey(sl, key, size);
-    if (_status.code == STATUS_SKIPLIST_MAXKEY_NOTFOUND) {
-        *key = sl->maxkey;
-        *size = sl->maxkey_len;
-        _status.code = 0;
-    }
+    *key = sl->maxkey;
+    *size = sl->maxkey_len;
     sl_unlock(sl, _offsets, 0);
     return _status;
 }
