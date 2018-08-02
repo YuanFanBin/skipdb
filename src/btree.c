@@ -406,7 +406,7 @@ static void shift_right_leaf(btree_fnode_t *left, btree_fnode_t *right,
     int i;
     unsigned int shiftnum = (left->slotuse - right->slotuse) >> 1;
 
-    for (i = right->slotuse - 1; i >= 0; ++i) {
+    for (i = right->slotuse - 1; i >= 0; --i) {
         right->keyslots[i + shiftnum] = right->keyslots[i];
         right->dataslots[i + shiftnum] = right->dataslots[i];
     }
@@ -426,10 +426,10 @@ static void shift_right_inner(btree_inode_t *left, btree_inode_t *right,
     int i;
     unsigned int shiftnum = (left->slotuse - right->slotuse) >> 1;
 
-    for (i = right->slotuse - 1; i >= 0; ++i) {
+    for (i = right->slotuse - 1; i >= 0; --i) {
         right->keyslots[i + shiftnum] = right->keyslots[i];
     }
-    for (i = right->slotuse; i >= 0; ++i) {
+    for (i = right->slotuse; i >= 0; --i) {
         right->children[i + shiftnum] = right->children[i];
     }
 
