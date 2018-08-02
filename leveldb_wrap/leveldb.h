@@ -1,6 +1,7 @@
 #ifndef __LEVELDB_H
 #define __LEVELDB_H
 
+#include "leveldb/cache.h"
 #include "leveldb/db.h"
 
 typedef struct {

@@ -8,6 +8,9 @@ int leveldb_open(const char *dir, leveldb_t **p_db) {
 
   leveldb::Options options;
   options.create_if_missing = true;
+  options.write_buffer_size = 1 * 1024 * 1024 * 1024;
+  options.max_open_files = 10000;
+  options.block_cache = leveldb::NewLRUCache(1 * 1024 * 1024 * 1024);
 
   leveldb::Status status = leveldb::DB::Open(options, dir, &db->db);
   if (!status.ok()) {
