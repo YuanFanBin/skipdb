@@ -15,6 +15,15 @@ int put(void *db, const char *key, int key_len, uint64_t value) {
     return r;
 }
 
+int get(void *db, const char *key, int key_len, uint64_t *p_value) {
+    int r = leveldb_get((leveldb_t *)db, key, key_len, p_value);
+    if (r != 0) {
+        printf("leveldb_get -- r %d\n\tkey: %s, key_len: %d\n",
+               r, key, key_len);
+    }
+    return r;
+}
+
 int main(int argc, const char *argv[]) {
     if (argc <= 1) {
         printf("Usage: ./a.out <count> <key_len>\n");
@@ -45,6 +54,7 @@ int main(int argc, const char *argv[]) {
     test_t t;
     t.db = db;
     t.put = put;
+    t.get = get;
 
     t.dis.count = (uint64_t) count;
     t.dis.dis_items_len = 1;
