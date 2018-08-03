@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+// __ssl_load 加载跳表数据
 static status_t _ssl_load(sskiplist_t* ssl) {
     uint64_t mapcap = 0;
     void* mapped = NULL;
@@ -23,6 +24,7 @@ static status_t _ssl_load(sskiplist_t* ssl) {
     return _status;
 }
 
+// _ssl_create 创建一个默认大小的mmap文件，并初始化跳表默认属性
 static status_t _ssl_create(sskiplist_t* ssl, float p) {
     void* mapped = NULL;
     status_t _status;
@@ -48,6 +50,7 @@ static status_t _ssl_create(sskiplist_t* ssl, float p) {
     return _status;
 }
 
+// ssl_open 打开跳表（创建或加载已有跳表）
 status_t ssl_open(const char* filename, float p, sskiplist_t** ssl) {
     int err;
     status_t _status = { .code = 0 };
@@ -76,6 +79,7 @@ status_t ssl_open(const char* filename, float p, sskiplist_t** ssl) {
     return _status;
 }
 
+// expand 扩展映射的文件，并重新映射跳表
 static status_t expand(sskiplist_t *ssl) {
     uint64_t newcap = 0;
     void* newmapped = NULL;
@@ -96,6 +100,9 @@ static status_t expand(sskiplist_t *ssl) {
     return _status;
 }
 
+// _ssl_put 添加key/value至跳表
+//  若旧key存在则更新其value
+//  若不存在则添加新key并置新key为指定状态（SSL_NODE_USE, SSL_NODE_DELETED）
 status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value, uint8_t flag) {
     status_t _status = { .code = 0 };
     sskipnode_t* head = NULL;
@@ -112,6 +119,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
     if (_status.code != 0) {
         return _status;
     }
+    // 若已映射文件的剩余可使用大小不足矣存放新添加key/value，先执行扩容操作
     if (ssl->index->mapcap - ssl->index->mapsize < (sizeof(sskipnode_t) + sizeof(uint64_t) * SSL_MAXLEVEL + SSL_MAX_KEY_LEN)) {
         _status = expand(ssl);
         if (_status.code != 0) {
@@ -120,6 +128,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
         }
     }
 
+    // 查找key/value待插入位置及需更新的节点列表
     head = curr = SSL_NODEHEAD(ssl);
     for (int level = -curr->level; level < 0; ++level) {
         while (1) {
@@ -129,6 +138,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
             }
             int cmp = compare(next->key, (size_t)next->key_len, key, key_len);
             if (cmp == 0) {
+                // 跳表ssl_del为惰性删除，若key已存在则重新利用节点
                 next->flag = flag;
                 next->value = value;
                 return ssl_unlock(ssl);
@@ -142,6 +152,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
         update[-(level + 1)] = curr;
     }
 
+    // 创建新节点
     uint16_t level = random_level(SSL_MAXLEVEL, ssl->index->p);
     sskipnode_t* node = (sskipnode_t*)(ssl->index->mapped + ssl->index->mapsize + sizeof(uint64_t) * level);
     node->key_len = (uint16_t)key_len;
@@ -157,6 +168,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
         }
         head->level = node->level;
     }
+    // 更新prev的forwards 及 next的backend，若新添数据为最大值，更新ssl->index->tail
     if (update[0] != NULL) {
         sskipnode_t* next = SSL_NODE(ssl, update[0]->forwards[-1]);
         if (next != NULL) {
@@ -174,6 +186,7 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
     return ssl_unlock(ssl);
 }
 
+// ssl_put 新增key/value至跳表
 status_t ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t value) {
     return _ssl_put(ssl, key, key_len, value, SSL_NODE_USED);
 }
@@ -183,6 +196,7 @@ status_t ssl_delput(sskiplist_t* ssl, const void* key, size_t key_len) {
     return _ssl_put(ssl, key, key_len, 0, SSL_NODE_DELETED);
 }
 
+// ssl_getnode 获取指定key的node结构
 status_t ssl_getnode(sskiplist_t* ssl, const void* key, size_t key_len, sskipnode_t** snode) {
     status_t _status = { .code = 0 };
 
@@ -215,6 +229,7 @@ status_t ssl_getnode(sskiplist_t* ssl, const void* key, size_t key_len, sskipnod
     return ssl_unlock(ssl);
 }
 
+// ssl_get 查询key所对应value
 status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* value) {
     status_t _status;
     sskipnode_t* snode = NULL;
@@ -229,6 +244,7 @@ status_t ssl_get(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t* va
     return _status;
 }
 
+// ssl_get_maxkey 获取当前跳表最大key（排除惰性删除节点）
 status_t ssl_get_maxkey(sskiplist_t* ssl, void** key, size_t* size) {
     status_t _status = { .code = 0 };
 
@@ -250,6 +266,7 @@ status_t ssl_get_maxkey(sskiplist_t* ssl, void** key, size_t* size) {
     return _status;
 }
 
+// ssl_del 删除key/value（惰性删除）
 status_t ssl_del(sskiplist_t* ssl, const void* key, size_t key_len) {
     status_t _status = { .code = 0 };
 
@@ -322,6 +339,7 @@ status_t ssl_unlock(sskiplist_t* ssl) {
     return _status;
 }
 
+// ssl_sync 同步刷新跳表至磁盘
 status_t ssl_sync(sskiplist_t* ssl) {
     status_t _status = { .code = 0 };
     if (ssl == NULL) {
@@ -333,6 +351,7 @@ status_t ssl_sync(sskiplist_t* ssl) {
     return _status;
 }
 
+// _ssl_close 关闭跳表并释放相应内存
 status_t _ssl_close(sskiplist_t* ssl, int is_remove_file) {
     int err;
     status_t _status = { .code = 0 };
@@ -359,10 +378,12 @@ status_t _ssl_close(sskiplist_t* ssl, int is_remove_file) {
     return _status;
 }
 
+// ssl_close 关闭跳表（保留数据文件）
 status_t ssl_close(sskiplist_t* ssl) {
     return _ssl_close(ssl, 0);
 }
 
+// ssl_destroy 关闭跳表（删除数据文件）
 status_t ssl_destroy(sskiplist_t* ssl) {
     return _ssl_close(ssl, 1);
 }

@@ -706,7 +706,7 @@ static status_t notify_btree_split(skiplist_t* sl) {
     return _status;
 }
 
-// sl_put put新key至跳表
+// sl_put 添加key/value至跳表
 status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value) {
     status_t _status = { .code = 0 };
     metanode_t* head = NULL;
@@ -782,7 +782,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         }
     }
 
-    // 查找待插入节点及待更新节点列表
+    // 查找key/value待插入位置及需待更新节点列表
     head = curr = METANODEHEAD(sl);
     for (int level = curr->level - 1; level >= 0; --level) {
         while (1) {
@@ -844,7 +844,7 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
         }
         head->level = mnode->level;
     }
-    // 更新prev的forwards 及 next的backend
+    // 更新prev的forwards 及 next的backend，若新添数据为最大值，更新ssl->index->tail
     if (update[0] != NULL) {
         metanode_t* next = METANODE(sl, update[0]->forwards[0]);
         if (next != NULL) {

@@ -33,13 +33,13 @@
 #define MAX_KEY_LEN         65535   // key最大长度(1 << 16 - 1), ::uint16_t datanode->size::
 #define SKIPLIST_MAXLEVEL   64      // 跳表最大level
 
-#define SKIPLIST_STATE_NORMAL 1
-#define SKIPLIST_STATE_DEFRAG 2     // 跳表data文件碎片整理
-#define SKIPLIST_STATE_SPLITED 3    // 被分裂者
-// #define SKIPLIST_STATE_REDO_LOG 4   // redo log
-#define SKIPLIST_STATE_SPLITER 5    // 分裂者（left, right)
-// #define SKIPLIST_STATE_MERGE_LOG 6  // 分裂者合并redo log
-#define SKIPLIST_STATE_SPLIT_DONE 7 // 分裂完成
+#define SKIPLIST_STATE_NORMAL       1
+#define SKIPLIST_STATE_DEFRAG       2       // 跳表data文件碎片整理
+#define SKIPLIST_STATE_SPLITED      3       // 被分裂者
+// #define SKIPLIST_STATE_REDO_LOG  4       // redo log
+#define SKIPLIST_STATE_SPLITER      5       // 分裂者（left, right)
+// #define SKIPLIST_STATE_MERGE_LOG 6       // 分裂者合并redo log
+#define SKIPLIST_STATE_SPLIT_DONE   7       // 分裂完成
 
 #define META_SUFFIX             ".meta"
 #define DATA_SUFFIX             ".data"
@@ -47,6 +47,19 @@
 #define SPLIT_LEFT_SUFFIX       ".sp.left"
 #define SPLIT_RIGHT_SUFFIX      ".sp.right"
 
+// ---------------16--------------32--------------48-------------64
+//               level            |              flag
+// ----------------------------------------------------------------
+//                              offset
+// ----------------------------------------------------------------
+//                              value
+// ----------------------------------------------------------------
+//                             backward
+// ----------------------------------------------------------------
+//                            forwards[0]
+//                               ...
+//                          forwards[level-1]
+// ----------------------------------------------------------------
 typedef struct metanode_s {
     uint32_t level;       // 当前节点高度
     uint32_t flag;        // 元数据节点状态：METANODE_XXXX
@@ -56,6 +69,20 @@ typedef struct metanode_s {
     uint64_t forwards[0]; // 跳表节点指向的后置节点偏移量，forwards个数由level决定
 } metanode_t;
 
+// ---------------16--------------32--------------48-------------64
+//                             mapsize
+// ----------------------------------------------------------------
+//                             mapcap
+// ----------------------------------------------------------------
+//                              tail
+// ----------------------------------------------------------------
+//               count            |              p
+// ----------------------------------------------------------------
+//                             mapped[]
+//                           {metanode_t}
+//                               ...
+//                           {metanode_t}
+// ----------------------------------------------------------------
 typedef struct skipmeta_s {
     uint64_t mapsize; // 元数据文件已使用字节数
     uint64_t mapcap;  // 元数据文件映射大小
@@ -65,12 +92,29 @@ typedef struct skipmeta_s {
     void* mapped;     // 映射起始地址
 } skipmeta_t;
 
+// ---------------16--------------32--------------48-------------64
+//                             offset
+// ----------------------------------------------------------------
+//       size     |                    data[]
+// ----------------------------------------------------------------
+//                               ...
+// ----------------------------------------------------------------
 typedef struct datanode_s {
     uint64_t offset; // 数据节点指向的元数据节点在meta文件中的偏移量
     uint16_t size;   // 数据节点data大小
     void* data[0];   // data内容（key）
 } datanode_t;
 
+// ---------------16--------------32--------------48-------------64
+//                             mapsize
+// ----------------------------------------------------------------
+//                             mapcap
+// ----------------------------------------------------------------
+//                             mapped[]
+//                           {datanode_t}
+//                               ...
+//                           {datanode_t}
+// ----------------------------------------------------------------
 typedef struct skipdata_s {
     uint64_t mapsize;   // 数据文件已使用字节数
     uint64_t mapcap;    // 数据文件映射大小
