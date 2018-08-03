@@ -34,6 +34,9 @@ int l_put(void *db, const char *key, int key_len, uint64_t value) {
 
 int l_get(void *db, const char *key, int key_len, uint64_t *p_value) {
     int r = leveldb_get((leveldb_t *) db, key, key_len, p_value);
+    if (r == 100) {
+        return 100;
+    }
     if (r != 0) {
         printf("leveldb_get -- r %d\n\tkey: %s, key_len: %d\n",
                r, key, key_len);
@@ -79,6 +82,9 @@ int s_put(void *db, const char *key, int key_len, uint64_t value) {
 
 int s_get(void *db, const char *key, int key_len, uint64_t *p_value) {
     status_t st = skipdb_get(static_cast<skipdb_t *>(db), key, (size_t) key_len, p_value);
+    if (st.code == STATUS_SKIPLIST_KEY_NOTFOUND) {
+        return 100;
+    }
     if (st.code != 0) {
         printf("skipdb_get -- st.code %d, errmsg: %s\n\tkey: %s, key_len: %d\n",
                st.code, st.errmsg, key, key_len);

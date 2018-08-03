@@ -52,6 +52,9 @@ int leveldb_get(leveldb_t *db, const char *key, int key_len,
   std::string val;
 
   leveldb::Status status = db->db->Get(readOptions, key, &val);
+  if (status.IsNotFound()) {
+    return 100;
+  }
   if (!status.ok()) {
     std::cerr << "db->Get Failed" << std::endl;
     std::cerr << status.ToString() << std::endl;

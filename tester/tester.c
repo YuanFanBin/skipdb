@@ -179,5 +179,5 @@ int test_get_notfound(test_t t) {
     double timed = delta(t1, t2);
     printf("test_get time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
 
-    return ret;
+    return 0;
 }
