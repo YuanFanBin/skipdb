@@ -970,7 +970,7 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
             return _status;
         }
         datanode_t* dnode = sl_get_datanode(sl->split->left, mnode->offset);
-        switch (compare(dnode->data, dnode->size, key, key_len)) {
+        switch (compare(key, key_len, dnode->data, dnode->size)) {
             case 1:
                 _status = sl_del(sl->split->right, key, key_len);
                 break;
