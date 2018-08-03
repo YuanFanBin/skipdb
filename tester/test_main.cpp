@@ -237,8 +237,6 @@ int main(int argc, const char *argv[]) {
     t.dis.dis_items = (dis_item_t *) (malloc(sizeof(dis_item_t) * dis_count));
     for (int i = 0; i < dis_count; ++i) {
         int argv_ix = 3 + procedure_count + 2 + i * 2;
-        printf("%d, %s\n", argv_ix, argv[argv_ix]);
-        fflush(stdout);
 
         int percent = atoi(argv[argv_ix]);
         if (percent <= 0 || percent > 100) {
