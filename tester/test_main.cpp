@@ -8,7 +8,7 @@
 // ================== leveldb
 
 int l_open(const char *path, void **p_db) {
-    int r = leveldb_open(path, (leveldb_t **) (p_db));
+    int r = leveldb_open(path, reinterpret_cast<leveldb_t **>(p_db));
     if (r != 0) {
         printf("leveldb_open -- r: %d, path: %s\n", r, path);
     }
@@ -164,6 +164,7 @@ int main(int argc, const char *argv[]) {
         );
         exit(-1);
     }
+
     test_t t = {0};
 
     // target argv[1]
