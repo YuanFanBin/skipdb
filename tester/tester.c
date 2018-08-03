@@ -5,6 +5,8 @@
 #include <sys/time.h>
 #include <errno.h>
 
+#include "skipdb.h"
+#include "status.h"
 #include "tester.h"
 
 // 测试数据
@@ -73,39 +75,47 @@ double delta(struct timeval t1, struct timeval t2) {
            ((double) t1.tv_sec + (double) t1.tv_usec / 1000000);
 }
 
-// 固定长度 32
-int benchmark_put(test_t t) {
+void panic(const char *msg) {
+    printf("panic: %s\n", msg);
+    printf("errno: %d, error: %s\n", errno, strerror(errno));
+    exit(-1);
+}
+
+
+// ==================
+
+int test_put(test_t t) {
     int ret = 0;
-    dis_t dis = t.dis;
 
-    char **data = make_data(dis);
-
-
+    struct timeval t1, t2;
     {
-        struct timeval t1, t2;
-    
         gettimeofday(&t1, NULL);
 
-        for (int i = 0; i < dis.count; ++i) {
-            if ((ret = t.put(t.db, data[i], (int) strlen(data[i]), (uint64_t) i)) != 0) {
+        for (int i = 0; i < t.dis.count; ++i) {
+            if ((ret = t.target.put(t.db, t.data[i], (int) strlen(t.data[i]), (uint64_t) i)) != 0) {
                 return ret;
             }
         }
 
         gettimeofday(&t2, NULL);
-
-        double timed = delta(t1, t2);
-        printf("PUT time: %lf, %lfw/s\n", timed, dis.count / timed / 10000);
     }
-    
-    {
-        struct timeval t1, t2;
+    double timed = delta(t1, t2);
 
+    printf("test_put time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
+    return ret;
+}
+
+int test_get_found(test_t t) {
+    int ret = 0;
+
+    struct timeval t1, t2;
+
+    {
         gettimeofday(&t1, NULL);
-        
+
         uint64_t value = 0;
-        for (int i = 0; i < dis.count; ++i) {
-            if ((ret = t.get(t.db, data[i], (int) strlen(data[i]), &value) != 0)) {
+        for (int i = 0; i < t.dis.count; ++i) {
+            if ((ret = t.target.get(t.db, t.data[i], (int) strlen(t.data[i]), &value) != 0)) {
                 return ret;
             }
             if (value != (uint64_t) i) {
@@ -115,17 +125,59 @@ int benchmark_put(test_t t) {
         }
 
         gettimeofday(&t2, NULL);
-
-        double timed = delta(t1, t2);
-        printf("GET time: %lf, %lfw/s\n", timed, dis.count / timed / 10000);
     }
 
-    free_data(dis, data);
+    double timed = delta(t1, t2);
+    printf("test_get time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
+
     return ret;
 }
 
-void panic(const char *msg) {
-    printf("panic: %s\n", msg);
-    printf("errno: %d, error: %s\n", errno, strerror(errno));
-    exit(-1);
+int test_del(test_t t) {
+    int ret = 0;
+
+    struct timeval t1, t2;
+
+    {
+        gettimeofday(&t1, NULL);
+
+        for (int i = 0; i < t.dis.count; ++i) {
+            if ((ret = t.target.del(t.db, t.data[i], (int) strlen(t.data[i]))) != 0) {
+                return ret;
+            }
+        }
+
+        gettimeofday(&t2, NULL);
+    }
+
+    double timed = delta(t1, t2);
+    printf("test_del time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
+
+    return ret;
+}
+
+int test_get_notfound(test_t t) {
+    int ret = 0;
+
+    struct timeval t1, t2;
+
+    {
+        gettimeofday(&t1, NULL);
+
+        uint64_t value = 0;
+        for (int i = 0; i < t.dis.count; ++i) {
+            ret = t.target.get(t.db, t.data[i], (int) strlen(t.data[i]), &value);
+            if (ret != STATUS_SKIPLIST_KEY_NOTFOUND) {
+                printf("仍然还存在的key: %s, value: %ld\n", t.data[i], value);
+                return -2;
+            }
+        }
+
+        gettimeofday(&t2, NULL);
+    }
+
+    double timed = delta(t1, t2);
+    printf("test_get time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
+
+    return ret;
 }

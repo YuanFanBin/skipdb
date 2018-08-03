@@ -1,6 +1,10 @@
 #ifndef SKIPDB_SKIPDB_H
 #define SKIPDB_SKIPDB_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include "status.h"
 #include "defrag.h"
@@ -48,5 +52,9 @@ void skiplist_iter_free(skiplist_iter_t *iter);
 #include "skiplist.h"
 
 struct skiplist_s *skiplist_iter_next(skiplist_iter_t *iter);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //SKIPDB_SKIPDB_H

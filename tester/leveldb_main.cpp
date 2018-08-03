@@ -1,13 +1,29 @@
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 
 #include "leveldb.h"
 #include "tester.h"
 
+int open(const char *path, void **p_db) {
+    leveldb_t *db = nullptr;
+    int r = leveldb_open("leveldb_data", &db);
+    if (r != 0) {
+        printf("leveldb_open -- r: %d, path: %s\n", r, path);
+    }
+    return r;
+}
+
+int close(void *db) {
+    int r = leveldb_close(static_cast<leveldb_t *>(db));
+    if (r != 0) {
+        printf("leveldb_close -- r: %d\n", r);
+    }
+    return r;
+}
+
 int put(void *db, const char *key, int key_len, uint64_t value) {
-    int r = leveldb_put((leveldb_t *)db, key, key_len, value);
+    int r = leveldb_put((leveldb_t *) db, key, key_len, value);
     if (r != 0) {
         printf("leveldb_put -- r %d\n\tkey: %s, key_len: %d\n",
                r, key, key_len);
@@ -16,7 +32,7 @@ int put(void *db, const char *key, int key_len, uint64_t value) {
 }
 
 int get(void *db, const char *key, int key_len, uint64_t *p_value) {
-    int r = leveldb_get((leveldb_t *)db, key, key_len, p_value);
+    int r = leveldb_get((leveldb_t *) db, key, key_len, p_value);
     if (r != 0) {
         printf("leveldb_get -- r %d\n\tkey: %s, key_len: %d\n",
                r, key, key_len);
@@ -25,7 +41,7 @@ int get(void *db, const char *key, int key_len, uint64_t *p_value) {
 }
 
 int del(void *db, const char *key, int key_len) {
-    int r = leveldb_del((leveldb_t *)db, key, (size_t) key_len);
+    int r = leveldb_del((leveldb_t *) db, key, key_len);
     if (r != 0) {
         printf("leveldb_del -- r %d\n\tkey: %s, key_len: %d\n",
                r, key, key_len);
@@ -53,7 +69,7 @@ int main(int argc, const char *argv[]) {
     printf("count: %d, key_len: %d\n\n", count, key_len);
 
     int r = 0;
-    leveldb_t *db = NULL;
+    leveldb_t *db = nullptr;
     r = leveldb_open("leveldb_data", &db);
     if (r != 0) {
         panic("leveldb_open(r not 0)");
@@ -67,7 +83,7 @@ int main(int argc, const char *argv[]) {
 
     t.dis.count = (uint64_t) count;
     t.dis.dis_items_len = 1;
-    t.dis.dis_items = (dis_item_t *)malloc(sizeof(dis_item_t) * t.dis.dis_items_len);
+    t.dis.dis_items = (dis_item_t *) malloc(sizeof(dis_item_t) * t.dis.dis_items_len);
     t.dis.dis_items[0].key_len = key_len;
     t.dis.dis_items[0].percent = 100;
 
