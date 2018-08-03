@@ -7,48 +7,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-status_t ssl_load(const char* filename, sskiplist_t** ssl) {
-    int err;
-    int fd = -1;
-    struct stat s;
-    void* mapped = NULL;
-    status_t _status = { .code = 0 };
-
-    if (filename == NULL) {
-        return statusnotok0(_status, "filename is NULL");
-    }
-
-    *ssl = (sskiplist_t*)malloc(sizeof(sskiplist_t));
-    (*ssl)->filename = (char*)malloc(sizeof(char) * strlen(filename) + 1);
-    if ((err = pthread_rwlock_init(&(*ssl)->rwlock, NULL)) != 0) {
-        return statusfuncnotok(_status, err, "pthread_rwlock_init");
-    }
-    memcpy((*ssl)->filename, filename, strlen(filename) + 1);
-    if (access(filename, F_OK) != 0) {
-        ssl_close(*ssl);
-        return statusfuncnotok(_status, errno, "access");
-    }
-    if ((fd = open(filename, O_RDWR)) < 0) {
-        ssl_close(*ssl);
-        return statusfuncnotok(_status, errno, "open");
-    }
-    if ((fstat(fd, &s)) == -1) {
-        close(fd);
-        ssl_close(*ssl);
-        return statusfuncnotok(_status, errno, "fstat");
-    }
-    _status = filemmap(fd, s.st_size, &mapped);
-    close(fd);
-    if (_status.code != 0) {
-        ssl_close(*ssl);
-        return _status;
-    }
-    (*ssl)->index = (sskipindex_t*)mapped;
-    (*ssl)->index->mapcap = s.st_size;
-    (*ssl)->index->mapped = mapped;
-    return _status;
-}
-
 static status_t _ssl_load(sskiplist_t* ssl) {
     uint64_t mapcap = 0;
     void* mapped = NULL;
@@ -119,21 +77,16 @@ status_t ssl_open(const char* filename, float p, sskiplist_t** ssl) {
 }
 
 static status_t expand(sskiplist_t *ssl) {
-    int fd = -1;
     uint64_t newcap = 0;
     void* newmapped = NULL;
     status_t _status = { .code = 0 };
 
-    if ((fd = open(ssl->filename, O_RDWR)) < 0) {
-        return statusfuncnotok(_status, errno, "open");
-    }
     if (ssl->index->mapcap < 1073741824) { // 1G: 1024 * 1024 * 1024
         newcap = ssl->index->mapcap * 2;
     } else {
         newcap = ssl->index->mapcap + 1073741824;
     }
-    _status = filemremap(fd, ssl->index->mapped, ssl->index->mapcap, newcap, &newmapped);
-    close(fd);
+    _status = ofmremap(ssl->filename, ssl->index->mapped, ssl->index->mapcap, newcap, &newmapped);
     if (_status.code != 0) {
         return _status;
     }
@@ -208,6 +161,8 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
         sskipnode_t* next = SSL_NODE(ssl, update[0]->forwards[-1]);
         if (next != NULL) {
             next->backward = SSL_NODEPOSITION(ssl, node);
+        } else {
+            ssl->index->tail = SSL_NODEPOSITION(ssl, node);
         }
     }
     for (int i = 0, pos = -1; i < node->level; ++i, --pos) {
@@ -215,7 +170,6 @@ status_t _ssl_put(sskiplist_t* ssl, const void* key, size_t key_len, uint64_t va
         update[i]->forwards[pos] = SSL_NODEPOSITION(ssl, node);
     }
     ssl->index->count++;
-    ssl->index->tail = SSL_NODEPOSITION(ssl, node);
     ssl->index->mapsize += SSL_NODESIZE(node);
     return ssl_unlock(ssl);
 }
@@ -373,7 +327,7 @@ status_t ssl_sync(sskiplist_t* ssl) {
     if (ssl == NULL) {
         return _status;
     }
-    if (msync(ssl->index->mapped, ssl->index->mapcap, MS_SYNC) != 0) {
+    if (ssl->index != NULL && msync(ssl->index->mapped, ssl->index->mapcap, MS_SYNC) != 0) {
         return statusfuncnotok(_status, errno, "msync");
     }
     return _status;
@@ -386,7 +340,7 @@ status_t _ssl_close(sskiplist_t* ssl, int is_remove_file) {
     if (ssl == NULL) {
         return _status;
     }
-    if (ssl->index->mapped != NULL) {
+    if (ssl->index != NULL && ssl->index->mapped != NULL) {
         if (munmap(ssl->index->mapped, ssl->index->mapsize) == -1) {
             return statusfuncnotok(_status, errno, "munmap");
         }
