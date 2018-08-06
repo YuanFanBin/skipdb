@@ -11,6 +11,7 @@ typedef struct _options {
     char*    name;
     int      isequal;
     int      issrand;
+    int      key_len;
 } _options;
 
 _options opt = {
@@ -19,6 +20,7 @@ _options opt = {
     .name    = NULL, // 测试文件名
     .isequal = 0,    // 是否等长随机key
     .issrand = 0,    // 是否设置随机种子
+    .key_len = 32,
 };
 
 void test_sskip() {
@@ -111,7 +113,8 @@ void benchmarkrand() {
         log_fatal("%s", s.errmsg);
     }
     {
-        genkeys(opt.count, opt.isequal);
+        cmpcount = 0;
+        genkeys(opt.count, opt.isequal, opt.key_len);
         gettimeofday(&start, NULL);
         int i = 0;
         for (i = 0; i < opt.count; ++i) {
@@ -127,14 +130,16 @@ void benchmarkrand() {
         log_info("%s: put(%u * %dB key) %fs, %fM/s, %fw key/s\n",
             __FUNCTION__,
             i,
-            KEY_LEN - 1,
+            opt.key_len - 1,
             e,
             ssl->index->mapsize / 1024.0 / 1024.0 / e,
             i / e / 10000);
+        printf("cmpcount = %d(%dw)", cmpcount, cmpcount/10000);
     }
 
     // TEST get
     {
+        cmpcount = 0;
         uint64_t value = 0;
         gettimeofday(&start, NULL);
         for (int i = 0; i < opt.count; ++i) {
@@ -145,10 +150,11 @@ void benchmarkrand() {
         log_info("%s: get(%u * %dB key) %fs, %fM/s, %fw key/s\n",
             __FUNCTION__,
             opt.count,
-            KEY_LEN - 1,
+            opt.key_len - 1,
             e,
             ssl->index->mapsize / 1024.0 / 1024.0 / e,
             opt.count / e / 10000);
+        printf("cmpcount = %d(%dw)", cmpcount, cmpcount/10000);
     }
 
     {
@@ -159,7 +165,7 @@ void benchmarkrand() {
         log_info("%s: syncdb(%ud * %dB key) %fs\n",
             __FUNCTION__,
             opt.count,
-            KEY_LEN - 1,
+            opt.key_len - 1,
             e);
     }
 
@@ -175,7 +181,7 @@ void usage() {
            "\tdel    <std skiplist name> <key>\n"
            "\tskip   <std skiplist name>\n"
            "\tprint  <std skiplist name> <isprintnode>\n"
-           "\trand   <std skiplist name> <count> <isequal> <p>\n");
+           "\trand   <std skiplist name> <count> <isequal> <p> <key_len>\n");
     exit(1);
 }
 
@@ -212,6 +218,7 @@ int main(int argc, char *argv[]) {
         opt.count = atoi(argv[3]);
         opt.isequal = atoi(argv[4]);
         opt.p = atof(argv[5]);
+        opt.key_len = atof(argv[6]);
         benchmarkrand();
 
     } else {

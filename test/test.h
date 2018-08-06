@@ -8,9 +8,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define KEY_LEN (32 + 1)
-
-char str[KEY_LEN];
+char* str = NULL;
 
 static const char chars[] = {
     // a-z
@@ -25,14 +23,15 @@ static const char chars[] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
 };
 
-void randkey(int isequal) {
+void randkey(int isequal, int key_len) {
+    str = (char*)malloc(sizeof(char) * key_len);
     if (isequal) { // 等长
-        for (int i = 0; i < KEY_LEN - 1; ++i) {
+        for (int i = 0; i < key_len - 1; ++i) {
             str[i] = chars[random() % 62];
         }
-        str[KEY_LEN - 1] = '\0';
+        str[key_len - 1] = '\0';
     } else { // 不等长
-        int n = random() % KEY_LEN + 2;
+        int n = random() % key_len + 2;
         for (int i = 0; i < n - 1; ++i) {
             str[i] = chars[random() % 62];
         }
@@ -47,12 +46,13 @@ double elapse(struct timeval stop, struct timeval start)
 
 char** keys = NULL;
 
-void genkeys(int count, int isequal) {
+void genkeys(int count, int isequal, int key_len) {
     keys = (char**)malloc(sizeof(char*) * count);
     for (int i = 0; i < count; ++i) {
-        randkey(isequal);
-        keys[i] = (char*)malloc(sizeof(char) * KEY_LEN);
-        memcpy(keys[i], str, KEY_LEN);
+        randkey(isequal, key_len);
+        keys[i] = (char*)malloc(sizeof(char) * key_len);
+        memcpy(keys[i], str, key_len);
+        free(str);
     }
 }
 
