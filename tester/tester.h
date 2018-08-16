@@ -37,7 +37,13 @@ typedef struct {
     // 测试数据
     dis_t dis;
     char **data;
+    int threads;
 } test_t;
+
+typedef struct {
+    test_t t;
+    int index;
+} pthread_ctx_t;
 
 void panic(const char *msg);
 
@@ -49,6 +55,7 @@ int test_put(test_t t);
 int test_get_found(test_t t);
 int test_del(test_t t);
 int test_get_notfound(test_t t);
+int test_put_multi(test_t t);
 #ifdef __cplusplus
 }
 #endif

@@ -8,6 +8,7 @@
 #include "skipdb.h"
 #include "status.h"
 #include "tester.h"
+#include <pthread.h>
 
 // 测试数据
 // // 长度 分布
@@ -108,6 +109,50 @@ int test_put(test_t t) {
     printf("test_put time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
     return ret;
 }
+
+void *put_fn(void *args) {
+    int ret = 0;
+    pthread_ctx_t *ctx = (pthread_ctx_t *)args;
+    int index = ctx->index;
+    test_t t = ctx->t;
+
+    for (int i = index; i < t.dis.count; i+=t.threads) {
+        if ((ret = t.target.put(t.db, t.data[i], (int) strlen(t.data[i]), (uint64_t) i)) != 0) {
+            printf("put failed\n");
+        }
+    }
+
+    return NULL;
+}
+
+int test_put_multi(test_t t) {
+    int ret = 0;
+    pthread_t tids[t.threads];
+    int thread_num = t.threads;
+
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
+    for (int i = 0; i < t.threads; ++i) {
+        pthread_ctx_t *ctx = malloc(sizeof(pthread_ctx_t));
+        ctx->index = i;
+        ctx->t = t;
+        ret = pthread_create(&tids[i], NULL, put_fn, ctx);
+        if (ret != 0) {
+            printf("pthead_create failed\n");
+        }
+    }
+
+    for (int i = 0; i < t.threads; ++i) {
+        pthread_join(tids[i], NULL);
+    }
+    gettimeofday(&t2, NULL);
+
+    double timed = delta(t1, t2);
+
+    printf("test_put_multi time: %lf, %lfw/s\n", timed, t.dis.count / timed / 10000);
+    return ret;
+}
+
 
 int test_get_found(test_t t) {
     int ret = 0;
