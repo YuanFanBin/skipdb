@@ -135,7 +135,7 @@ typedef struct {
     int (*func)(test_t t);
 } procedure_t;
 
-#define PROCEDURE_COUNT 4
+#define PROCEDURE_COUNT 5
 
 procedure_t procedures[PROCEDURE_COUNT] = {0};
 
@@ -148,6 +148,8 @@ void init_procedure() {
     procedures[2].func = test_del;
     procedures[3].name = "test_get_notfound";
     procedures[3].func = test_get_notfound;
+    procedures[4].name = "test_put_multi";
+    procedures[4].func = test_put_multi;
 }
 
 // Usage:
@@ -251,6 +253,9 @@ int main(int argc, const char *argv[]) {
         }
         t.dis.dis_items[i].key_len = key_len;
     }
+
+
+    t.threads = static_cast<int>(atoi(argv[argc-1]));
     // free t.dis.dis_items
 
     { // print arguments
