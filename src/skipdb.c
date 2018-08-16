@@ -224,6 +224,7 @@ status_t skipdb_close(skipdb_t *db) {
     return st;
 }
 
+// TODO
 status_t skipdb_sync(skipdb_t *db) {
     status_t st = {0};
 
@@ -250,12 +251,18 @@ status_t skipdb_put(skipdb_t *db, const char *key, size_t key_len, uint64_t valu
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
-    assert(sl != NULL);
+    while (true) {
+        skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
+        assert(sl != NULL);
 
-    st = sl_put(sl, key, key_len, value);
-    if (st.code != 0) {
-        return st;
+        st = sl_put(sl, key, key_len, value);
+        if (st.code == STATUS_SKIPLIST_WAIT_CLEAN) {
+            continue;
+        }
+        if (st.code != 0) {
+            return st;
+        }
+        break;
     }
 
     return st;
@@ -269,13 +276,19 @@ status_t skipdb_get(skipdb_t *db, const char *key, size_t key_len,
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
-    assert(sl != NULL);
-
     uint64_t value = 0;
-    st = sl_get(sl, key, key_len, &value);
-    if (st.code != 0) {
-        return st;
+    while (true) {
+        skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
+        assert(sl != NULL);
+
+        st = sl_get(sl, key, key_len, &value);
+        if (st.code == STATUS_SKIPLIST_WAIT_CLEAN) {
+            continue;
+        }
+        if (st.code != 0) {
+            return st;
+        }
+        break;
     }
 
     *p_value = value;
@@ -289,12 +302,18 @@ status_t skipdb_del(skipdb_t *db, const char *key, size_t key_len) {
         return (st.code = STATUS_SKIPDB_CLOSED, st);
     }
 
-    skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
-    assert(sl != NULL);
+    while (true) {
+        skiplist_t *sl = btree_search(db->btree, btree_str((char *) key, key_len));
+        assert(sl != NULL);
 
-    st = sl_del(sl, key, key_len);
-    if (st.code != 0) {
-        return st;
+        st = sl_del(sl, key, key_len);
+        if (st.code == STATUS_SKIPLIST_WAIT_CLEAN) {
+            continue;
+        }
+        if (st.code != 0) {
+            return st;
+        }
+        break;
     }
 
     return st;
