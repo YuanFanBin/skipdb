@@ -130,6 +130,12 @@ status_t sl_get_maxkey(skiplist_t* sl, void** key, size_t* size) {
     if (_status.code != 0) {
         return _status;
     }
+    if (sl->state == SKIPLIST_STATE_WAIT_CLEAN) {
+        _status.code = STATUS_SKIPLIST_WAIT_CLEAN;
+        snprintf(_status.errmsg, ERRMSG_SIZE, "split finished, wait clean");
+        sl_unlock(sl, _offsets, 0);
+        return _status;
+    }
     *key = sl->maxkey;
     *size = sl->maxkey_len;
     sl_unlock(sl, _offsets, 0);
