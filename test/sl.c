@@ -166,7 +166,6 @@ void benchmarkrand() {
         log_fatal("%s", s.errmsg);
     }
     {
-        cmpcount = 0;
         genkeys(opt.count, opt.isequal, opt.key_len);
         gettimeofday(&start, NULL);
         int i = 0;
@@ -187,12 +186,10 @@ void benchmarkrand() {
             e,
             sl->meta->mapsize / 1024.0 / 1024.0 / e,
             i / e / 10000);
-        printf("cmpcount = %d(%dw)", cmpcount, cmpcount/10000);
     }
 
     // TEST get
     {
-        cmpcount = 0;
         uint64_t value = 0;
         gettimeofday(&start, NULL);
         int i = 0;
@@ -208,7 +205,6 @@ void benchmarkrand() {
             e,
             sl->meta->mapsize / 1024.0 / 1024.0 / e,
             i / e / 10000);
-        printf("cmpcount = %d(%dw)", cmpcount, cmpcount/10000);
     }
 
     {
