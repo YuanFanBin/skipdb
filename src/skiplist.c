@@ -703,6 +703,8 @@ static status_t notify_btree_split(skiplist_t* sl) {
     sl_unlock(sl->split->right, _offsets, 0);
     sl->split->right = NULL;
 
+    sl->state = SKIPLIST_STATE_WAIT_CLEAN;
+
     return _status;
 }
 
@@ -722,6 +724,12 @@ status_t sl_put(skiplist_t* sl, const void* key, size_t key_len, uint64_t value)
     }
     _status = sl_wrlock(sl, _offsets, 0);
     if (_status.code != 0) {
+        return _status;
+    }
+    if (sl->state == SKIPLIST_STATE_WAIT_CLEAN) {
+        _status.code = STATUS_SKIPLIST_WAIT_CLEAN;
+        snprintf(_status.errmsg, ERRMSG_SIZE, "split finished, wait clean");
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     // 若跳表是为被分裂者，则所有写操作写向redolog
@@ -874,6 +882,12 @@ status_t sl_get(skiplist_t* sl, const void* key, size_t key_len, uint64_t* value
     if (_status.code != 0) {
         return _status;
     }
+    if (sl->state == SKIPLIST_STATE_WAIT_CLEAN) {
+        _status.code = STATUS_SKIPLIST_WAIT_CLEAN;
+        snprintf(_status.errmsg, ERRMSG_SIZE, "split finished, wait clean");
+        sl_unlock(sl, _offsets, 0);
+        return _status;
+    }
     // 若被操作的跳表已分裂完成，但上层并未开始分裂，则从left/right中查询
     if (sl->state == SKIPLIST_STATE_SPLIT_DONE) {
         metanode_t* mnode = METANODE(sl->split->left, sl->split->left->meta->tail);
@@ -953,6 +967,12 @@ status_t sl_del(skiplist_t* sl, const void* key, size_t key_len) {
     }
     _status = sl_wrlock(sl, _offsets, 0);
     if (_status.code != 0) {
+        return _status;
+    }
+    if (sl->state == SKIPLIST_STATE_WAIT_CLEAN) {
+        _status.code = STATUS_SKIPLIST_WAIT_CLEAN;
+        snprintf(_status.errmsg, ERRMSG_SIZE, "split finished, wait clean");
+        sl_unlock(sl, _offsets, 0);
         return _status;
     }
     // 若跳表处于分裂状态中，则将删除操作加入到redolog中

@@ -11,6 +11,7 @@
 
 #define STATUS_SKIPLIST_KEY_NOTFOUND 100
 #define STATUS_SKIPLIST_MAXKEY_NOTFOUND 101
+#define STATUS_SKIPLIST_WAIT_CLEAN 102
 
 typedef struct {
     int code;

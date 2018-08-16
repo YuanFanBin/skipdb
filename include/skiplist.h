@@ -40,6 +40,7 @@
 #define SKIPLIST_STATE_SPLITER      5       // 分裂者（left, right)
 // #define SKIPLIST_STATE_MERGE_LOG 6       // 分裂者合并redo log
 #define SKIPLIST_STATE_SPLIT_DONE   7       // 分裂完成
+#define SKIPLIST_STATE_WAIT_CLEAN   8       // 分裂完成，待销毁状态
 
 #define META_SUFFIX             ".meta"
 #define DATA_SUFFIX             ".data"
