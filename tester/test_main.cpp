@@ -265,7 +265,7 @@ int main(int argc, const char *argv[]) {
         for (int i = 0; i < procedure_count; ++i) {
             printf("\t\t %s\n", procedures[procedure_ids[i]].name);
         }
-        printf("数据总量: %ld\n", t.dis.count);
+        printf("数据总量: %lfw\n", t.dis.count / 10000.0);
         printf("数据分布: 个数: %d\n", dis_count);
         for (int i = 0; i < dis_count; ++i) {
             printf("\t\t {percent: %d, key_len: %d}\n", t.dis.dis_items[i].percent, t.dis.dis_items[i].key_len);

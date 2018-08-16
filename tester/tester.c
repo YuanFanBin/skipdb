@@ -96,6 +96,10 @@ int test_put(test_t t) {
             if ((ret = t.target.put(t.db, t.data[i], (int) strlen(t.data[i]), (uint64_t) i)) != 0) {
                 return ret;
             }
+
+            if (i % 5000000 == 0) {
+                printf("done %dw\n", i / 10000);
+            }
         }
 
         gettimeofday(&t2, NULL);
@@ -167,6 +171,10 @@ int test_get_found(test_t t) {
                 printf("the value if not consistent\n");
                 return -1;
             }
+
+            if (i % 5000000 == 0) {
+                printf("done %dw\n", i / 10000);
+            }
         }
 
         gettimeofday(&t2, NULL);
@@ -189,6 +197,10 @@ int test_del(test_t t) {
         for (int i = 0; i < t.dis.count; ++i) {
             if ((ret = t.target.del(t.db, t.data[i], (int) strlen(t.data[i]))) != 0) {
                 return ret;
+            }
+
+            if (i % 5000000 == 0) {
+                printf("done %dw\n", i / 10000);
             }
         }
 
@@ -215,6 +227,10 @@ int test_get_notfound(test_t t) {
             if (ret != STATUS_SKIPLIST_KEY_NOTFOUND) {
                 printf("仍然还存在的key: %s, value: %ld\n", t.data[i], value);
                 return -2;
+            }
+
+            if (i % 5000000 == 0) {
+                printf("done %dw\n", i / 10000);
             }
         }
 
